@@ -475,14 +475,18 @@
     <div id="login-overlay" class="modal-overlay fixed inset-0 flex items-center justify-center hidden" style="z-index:75;">
         <div class="glass-card border border-yellow-500/30 rounded-2xl p-6 w-[360px] max-w-[92vw]">
             <div class="text-xl font-black italic tracking-tighter mb-1"><span class="sheen">ADYSINNIA</span> <span class="text-[#ffb300]">IND.</span></div>
-            <p class="text-[11px] text-zinc-500 uppercase tracking-widest mb-5">Operator sign in</p>
+            <p id="login-title" class="text-[11px] text-zinc-500 uppercase tracking-widest mb-5">Operator sign in</p>
             <form id="login-form" class="space-y-3">
                 <input id="login-email" type="email" autocomplete="username" class="pos-input w-full" placeholder="Email" style="width:100%;">
+                <input id="login-phone" type="tel" autocomplete="tel" class="pos-input w-full hidden" placeholder="Phone (e.g. +251…)" style="width:100%;">
                 <input id="login-pass" type="password" autocomplete="current-password" class="pos-input w-full" placeholder="Password" style="width:100%;">
                 <div id="login-error" class="text-[11px] text-red-400" style="min-height:14px;"></div>
                 <button type="submit" id="login-submit" class="w-full py-2.5 rounded-lg bg-yellow-500 text-black font-bold text-sm hover:bg-yellow-400 transition-colors" style="width:100%;">Sign in</button>
             </form>
-            <button type="button" id="login-forgot" class="text-[11px] text-zinc-500 hover:text-zinc-300 mt-3">Forgot password?</button>
+            <div class="flex items-center justify-between mt-3">
+                <button type="button" id="login-toggle" class="text-[11px] text-yellow-500 hover:text-yellow-400">Create account</button>
+                <button type="button" id="login-forgot" class="text-[11px] text-zinc-500 hover:text-zinc-300">Forgot password?</button>
+            </div>
             <div class="border-t border-white/10 my-4"></div>
             <button type="button" id="login-local" class="py-2.5 rounded-lg bg-zinc-800 text-sm hover:bg-zinc-700 transition-colors" style="width:100%;">Continue on local network</button>
             <p class="text-[10px] text-zinc-600 mt-2 leading-snug">Cloud accounts &amp; machine pairing are enforced by the server (cloud release). On your LAN you can control a machine directly.</p>
@@ -503,42 +507,63 @@
         </div>
     </div>
 
-    <!-- My Profile: account + per-customer Telegram linking (copy a code into the bot) -->
-    <div id="telegram-modal" class="modal-overlay fixed inset-0 flex items-center justify-center hidden" style="z-index:72;">
-        <div class="glass-card border border-yellow-500/30 rounded-2xl p-6 w-[380px] max-w-[92vw]">
-            <h2 class="text-base font-bold mb-4">&#128100; My Profile</h2>
-
-            <label class="text-[10px] text-zinc-500 uppercase tracking-widest">Email</label>
-            <div id="pf-email" class="mono text-sm text-zinc-300 mb-3">—</div>
-
-            <label class="text-[10px] text-zinc-500 uppercase tracking-widest">Phone</label>
-            <div class="flex gap-2 mb-1">
-                <input id="pf-phone" class="pos-input" style="width:100%;" placeholder="e.g. +251…">
-                <button id="pf-save-phone" class="jog-btn text-sm" style="white-space:nowrap;">Save</button>
-            </div>
-            <div id="pf-phone-msg" class="text-[11px] mb-4" style="min-height:14px;"></div>
-
-            <div class="border-t border-white/10 my-2"></div>
-            <h3 class="text-sm font-bold mt-3 mb-1">&#128276; Telegram alerts</h3>
-            <p class="text-[11px] text-zinc-500 mb-3">Get a message when <b>your</b> machine reports a fault. One bot serves everyone; your code links it to your account only.</p>
-            <div id="tg-status" class="text-[13px] mb-3"></div>
-
-            <div id="tg-connect-wrap">
-                <button id="tg-connect" class="py-2.5 rounded-lg bg-yellow-500 text-black font-bold text-sm hover:bg-yellow-400 transition-colors" style="width:100%;">Connect Telegram</button>
+    <!-- My Profile page: account, preferences, Telegram, engineering settings, sign out -->
+    <div id="telegram-modal" class="overlay-full hidden" style="z-index:72; background:rgba(8,8,10,.9);">
+        <div class="glass-card border border-yellow-500/20 rounded-2xl p-6 w-[440px] max-w-[94vw]" style="max-height:88vh; overflow:auto;">
+            <div class="flex items-center justify-between mb-5">
+                <h2 class="text-lg font-bold">&#128100; My Profile</h2>
+                <button id="tg-close" class="jog-btn" style="padding:4px 12px; font-size:18px; line-height:1;">&times;</button>
             </div>
 
-            <!-- shown after a code is generated -->
-            <div id="tg-code-box" class="hidden">
-                <p class="text-[12px] mb-2">1. Open the bot: <a id="tg-bot-link" href="#" target="_blank" class="text-yellow-500 font-bold">open bot</a></p>
-                <p class="text-[12px] mb-1">2. Send it this code (or tap the link — it fills it in):</p>
-                <div class="flex gap-2 items-center mb-2">
-                    <code id="tg-code" class="mono text-yellow-500" style="background:#0e0e12;border:1px solid var(--glow-dim);border-radius:8px;padding:8px 10px;flex:1;letter-spacing:1px;">…</code>
-                    <button id="tg-copy" class="jog-btn text-sm">Copy</button>
+            <div id="pf-account-sec">
+                <h3 class="text-[10px] text-zinc-500 uppercase tracking-widest mb-2">Account</h3>
+                <label class="text-[10px] text-zinc-500 uppercase tracking-widest">Email</label>
+                <div id="pf-email" class="mono text-sm text-zinc-300 mb-3">—</div>
+                <label class="text-[10px] text-zinc-500 uppercase tracking-widest">Phone</label>
+                <div class="flex gap-2 mb-1">
+                    <input id="pf-phone" class="pos-input" style="width:100%;" placeholder="e.g. +251…">
+                    <button id="pf-save-phone" class="jog-btn text-sm" style="white-space:nowrap;">Save</button>
                 </div>
-                <p class="text-[10px] text-zinc-600">Valid 15 min. Reopen this to confirm it shows “Connected”.</p>
+                <div id="pf-phone-msg" class="text-[11px] mb-4" style="min-height:14px;"></div>
+                <div class="border-t border-white/10 my-4"></div>
             </div>
 
-            <button id="tg-close" class="text-[11px] text-zinc-500 hover:text-zinc-300 mt-4">Close</button>
+            <div id="pf-local-note" class="hidden text-[12px] text-zinc-500 mb-4 p-3 rounded-lg" style="background:#0e0e12;border:1px solid var(--glow-dim);">
+                You’re on <b>local network</b> mode. Sign in with a cloud account to manage your profile and link Telegram alerts.
+            </div>
+
+            <h3 class="text-[10px] text-zinc-500 uppercase tracking-widest mb-2">Preferences</h3>
+            <label class="text-[10px] text-zinc-500 uppercase tracking-widest">Language</label>
+            <select id="pf-lang" class="pos-input" style="width:100%; margin-top:4px;">
+                <option value="en">English (EN)</option>
+                <option value="am">አማርኛ (Amharic)</option>
+            </select>
+
+            <div id="pf-telegram-sec">
+                <div class="border-t border-white/10 my-4"></div>
+                <h3 class="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">&#128276; Telegram alerts</h3>
+                <p class="text-[11px] text-zinc-500 mb-3">Get a message when <b>your</b> machine reports a fault. One bot serves everyone; your code links it to your account only.</p>
+                <div id="tg-status" class="text-[13px] mb-3"></div>
+                <div id="tg-connect-wrap">
+                    <button id="tg-connect" class="py-2.5 rounded-lg bg-yellow-500 text-black font-bold text-sm hover:bg-yellow-400 transition-colors" style="width:100%;">Connect Telegram</button>
+                </div>
+                <div id="tg-code-box" class="hidden">
+                    <p class="text-[12px] mb-2">1. Open the bot: <a id="tg-bot-link" href="#" target="_blank" class="text-yellow-500 font-bold">open bot</a></p>
+                    <p class="text-[12px] mb-1">2. Send it this code (or tap the link — it fills it in):</p>
+                    <div class="flex gap-2 items-center mb-2">
+                        <code id="tg-code" class="mono text-yellow-500" style="background:#0e0e12;border:1px solid var(--glow-dim);border-radius:8px;padding:8px 10px;flex:1;letter-spacing:1px;">…</code>
+                        <button id="tg-copy" class="jog-btn text-sm">Copy</button>
+                    </div>
+                    <p class="text-[10px] text-zinc-600">Valid 15 min. Reopen this to confirm it shows “Connected”.</p>
+                </div>
+            </div>
+
+            <div class="border-t border-white/10 my-4"></div>
+            <h3 class="text-[10px] text-zinc-500 uppercase tracking-widest mb-2">Advanced</h3>
+            <button id="pf-admin" class="jog-btn text-sm" style="width:100%;">&#9881;&#65039; Engineering / Admin settings</button>
+
+            <div class="border-t border-white/10 my-4"></div>
+            <button id="pf-signout" class="py-2.5 rounded-lg bg-red-950/40 border border-red-500/30 text-red-400 text-sm font-bold hover:bg-red-900/40 transition-colors" style="width:100%;">Sign out</button>
         </div>
     </div>
 
@@ -551,7 +576,7 @@
             <div class="flex items-center gap-3 mt-2.5 flex-wrap">
                 <span class="status-dot" id="conn-dot" style="background: #00e676;" title="ESP32 connection"></span>
                 <span class="hidden sm:inline text-[9px] mono text-zinc-500 tracking-widest uppercase" data-i18n="systemId">System: AD-PRO-INJERA-V2</span>
-                <select id="lang-selector" class="lang-dropdown" onchange="setLang(this.value)" aria-label="Language">
+                <select id="lang-selector" class="lang-dropdown" onchange="setLang(this.value)" aria-label="Language" style="display:none;">
                     <option value="en">English (EN)</option>
                     <option value="am">አማርኛ (Amharic)</option>
                 </select>
@@ -578,7 +603,7 @@
                 <span id="session-label" class="mono uppercase tracking-widest">LOCAL</span>
                 <span class="text-zinc-500">&#x23FB;</span>
             </button>
-            <button id="settings-btn" title="Admin Settings" aria-label="Admin Settings" class="lang-dropdown" style="padding:8px 14px; font-size: 16px;">&#x2699;</button>
+            <button id="settings-btn" title="Admin Settings" aria-label="Admin Settings" class="lang-dropdown" style="padding:8px 14px; font-size: 16px; display:none;">&#x2699;</button>
         </div>
     </nav>
 
@@ -1935,7 +1960,7 @@
             }
             // Local-network mode (a persisted choice; talks straight to the ESP32).
             const s = readSession();
-            if (s && s.mode === 'local') { cloudMode = false; updateSessionChip(s); return enterDashboard(); }
+            if (s && s.mode === 'local') { cloudMode = false; updateSessionChip(s); showTgBtn(true); return enterDashboard(); }
             showLogin();
         }
 
@@ -1970,7 +1995,7 @@
         async function doLogin(email, password) {
             const err = document.getElementById('login-error');
             const btn = document.getElementById('login-submit');
-            err.innerText = ''; btn.disabled = true; btn.innerText = 'Signing in…';
+            err.style.color = ''; err.innerText = ''; btn.disabled = true; btn.innerText = 'Signing in…';
             try {
                 if (!sb) {
                     err.innerText = 'Cloud sign-in isn’t configured here. Use “Continue on local network”.';
@@ -1988,7 +2013,7 @@
         function continueLocal() {
             const sess = { mode: 'local', email: null, exp: Date.now() + 30 * 86400000 };
             writeSession(sess); updateSessionChip(sess);
-            cloudMode = false; currentMachineId = null; showTgBtn(false);
+            cloudMode = false; currentMachineId = null; showTgBtn(true);  // profile holds settings/language too
             document.getElementById('login-overlay').classList.add('hidden');
             enterDashboard();
         }
@@ -2049,6 +2074,17 @@
             modal.classList.remove('hidden');
             document.getElementById('tg-code-box').classList.add('hidden');
             document.getElementById('pf-phone-msg').textContent='';
+            try{ document.getElementById('pf-lang').value = currentLang; }catch(e){}
+
+            // Local mode: no cloud account — show only Preferences + Advanced.
+            const signedIn = cloudMode && !!currentUserId && !!sb;
+            document.getElementById('pf-account-sec').classList.toggle('hidden', !signedIn);
+            document.getElementById('pf-telegram-sec').classList.toggle('hidden', !signedIn);
+            document.getElementById('pf-local-note').classList.toggle('hidden', signedIn);
+            const out=document.getElementById('pf-signout');
+            out.textContent = signedIn ? 'Sign out' : 'Back to sign in';
+            if(!signedIn) return;
+
             // account email
             let email=''; try{ const {data}=await sb.auth.getUser(); email=(data&&data.user)?data.user.email:''; }catch(e){}
             document.getElementById('pf-email').textContent=email||'—';
@@ -2069,7 +2105,7 @@
         }
         async function getTelegramCode(){
             const btn=document.getElementById('tg-connect');
-            const user=(window.AD_CONFIG&&window.AD_CONFIG.TELEGRAM_BOT_USERNAME)||'';
+            const user=((window.AD_CONFIG&&window.AD_CONFIG.TELEGRAM_BOT_USERNAME)||'').replace(/^@/,'');   // tolerate a leading @
             if(!user||user==='YourAdysBot'||user==='YourBotsUsername'){ document.getElementById('tg-status').innerHTML='<span style="color:#ff5a4d">Set TELEGRAM_BOT_USERNAME in config.js to your bot’s @username first.</span>'; return; }
             btn.disabled=true; btn.textContent='Generating…';
             try{
@@ -2088,24 +2124,80 @@
             const code=document.getElementById('tg-code').textContent; const b=document.getElementById('tg-copy');
             try{ navigator.clipboard.writeText(code); b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1500); }catch(e){ b.textContent='Copy failed'; }
         }
+        function closeProfile(){ document.getElementById('telegram-modal').classList.add('hidden'); }
         function setupTelegram(){
             const b=document.getElementById('tg-alerts-btn'); if(b) b.addEventListener('click',openTelegramModal);
             document.getElementById('tg-connect').addEventListener('click',getTelegramCode);
             document.getElementById('tg-copy').addEventListener('click',copyTgCode);
             document.getElementById('pf-save-phone').addEventListener('click',savePhone);
-            document.getElementById('tg-close').addEventListener('click',()=>document.getElementById('telegram-modal').classList.add('hidden'));
-            document.getElementById('telegram-modal').addEventListener('click',e=>{ if(e.target.id==='telegram-modal') document.getElementById('telegram-modal').classList.add('hidden'); });
+            document.getElementById('tg-close').addEventListener('click',closeProfile);
+            document.getElementById('telegram-modal').addEventListener('click',e=>{ if(e.target.id==='telegram-modal') closeProfile(); });
+            // Preferences: language (moved out of the nav)
+            document.getElementById('pf-lang').addEventListener('change', e=>setLang(e.target.value));
+            // Advanced: open the existing engineering/admin panel (its button is hidden in the nav)
+            document.getElementById('pf-admin').addEventListener('click', ()=>{ closeProfile(); document.getElementById('settings-btn').click(); });
+            // Sign out
+            document.getElementById('pf-signout').addEventListener('click', ()=>{ closeProfile(); signOut(); });
+        }
+
+        // Login vs sign-up mode on the first page.
+        let loginMode = 'signin';
+        function setLoginMode(mode){
+            loginMode = mode;
+            const signup = mode === 'signup';
+            document.getElementById('login-title').textContent = signup ? 'Create your account' : 'Operator sign in';
+            document.getElementById('login-phone').classList.toggle('hidden', !signup);
+            document.getElementById('login-submit').textContent = signup ? 'Create account' : 'Sign in';
+            document.getElementById('login-toggle').textContent = signup ? 'Have an account? Sign in' : 'Create account';
+            document.getElementById('login-pass').setAttribute('autocomplete', signup ? 'new-password' : 'current-password');
+            document.getElementById('login-error').textContent = '';
+        }
+        async function doSignup(email, password, phone){
+            const err = document.getElementById('login-error');
+            const btn = document.getElementById('login-submit');
+            err.style.color=''; err.textContent='';
+            if(!sb){ err.textContent='Cloud sign-up isn’t configured here.'; return; }
+            if(!email || !password){ err.textContent='Email and password are required.'; return; }
+            if(password.length < 6){ err.textContent='Password must be at least 6 characters.'; return; }
+            btn.disabled=true; btn.textContent='Creating…';
+            try{
+                const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ phone } } });
+                if(error){ err.textContent = error.message || 'Sign up failed.'; return; }
+                if(data.session){   // confirmations off -> straight in
+                    try{ await sb.from('profiles').update({ phone }).eq('id', data.user.id); }catch(e){}
+                    clearSession();
+                    await enterCloud(data.session);
+                } else {            // email confirmation required
+                    setLoginMode('signin');
+                    err.style.color='#00e676';
+                    err.textContent='Account created. Confirm via the email we sent, then sign in.';
+                }
+            }catch(e){ err.textContent='Sign-up error: '+(e.message||'network'); }
+            finally{ btn.disabled=false; btn.textContent = loginMode==='signup'?'Create account':'Sign in'; }
         }
 
         function setupAuth() {
             setupTelegram();
             document.getElementById('login-form').addEventListener('submit', (e) => {
                 e.preventDefault();
-                doLogin(document.getElementById('login-email').value.trim(), document.getElementById('login-pass').value);
+                const email = document.getElementById('login-email').value.trim();
+                const pass = document.getElementById('login-pass').value;
+                if (loginMode === 'signup') doSignup(email, pass, document.getElementById('login-phone').value.trim());
+                else doLogin(email, pass);
             });
+            document.getElementById('login-toggle').addEventListener('click', () => setLoginMode(loginMode==='signin'?'signup':'signin'));
             document.getElementById('login-local').addEventListener('click', continueLocal);
-            document.getElementById('login-forgot').addEventListener('click', () =>
-                toast('Password reset arrives with cloud accounts (server-side).', 'cmd', 'forgot'));
+            document.getElementById('login-forgot').addEventListener('click', async () => {
+                const err = document.getElementById('login-error');
+                const email = document.getElementById('login-email').value.trim();
+                if (!sb) { err.style.color=''; err.textContent = 'Password reset needs a cloud account.'; return; }
+                if (!email) { err.style.color=''; err.textContent = 'Enter your email first, then tap Forgot password.'; return; }
+                try {
+                    await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
+                    err.style.color = '#00e676';
+                    err.textContent = 'If that email has an account, a reset link is on its way.';
+                } catch (e) { err.style.color=''; err.textContent = 'Could not start reset: ' + (e.message || 'network'); }
+            });
             document.getElementById('pair-form').addEventListener('submit', (e) => {
                 e.preventDefault();
                 doPair(document.getElementById('pair-code').value.trim());
