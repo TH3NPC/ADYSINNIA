@@ -503,16 +503,41 @@
         </div>
     </div>
 
-    <!-- Telegram alerts (per-customer): link your Telegram to get this machine's faults -->
+    <!-- My Profile: account + per-customer Telegram linking (copy a code into the bot) -->
     <div id="telegram-modal" class="modal-overlay fixed inset-0 flex items-center justify-center hidden" style="z-index:72;">
-        <div class="glass-card border border-yellow-500/30 rounded-2xl p-6 w-[360px] max-w-[92vw]">
-            <h2 class="text-base font-bold mb-1">&#128276; Telegram alerts</h2>
-            <p class="text-[11px] text-zinc-500 mb-4">Get a message when your machine reports a fault. Only your machines' faults go to your Telegram.</p>
-            <div id="tg-status" class="text-[13px] mb-4"></div>
-            <div id="tg-connect-wrap">
-                <button id="tg-connect" class="w-full py-2.5 rounded-lg bg-yellow-500 text-black font-bold text-sm hover:bg-yellow-400 transition-colors" style="width:100%;">Connect Telegram</button>
-                <p class="text-[10px] text-zinc-600 mt-2 leading-snug">Opens Telegram with a one-time link code. Tap <b>Start</b> there to finish.</p>
+        <div class="glass-card border border-yellow-500/30 rounded-2xl p-6 w-[380px] max-w-[92vw]">
+            <h2 class="text-base font-bold mb-4">&#128100; My Profile</h2>
+
+            <label class="text-[10px] text-zinc-500 uppercase tracking-widest">Email</label>
+            <div id="pf-email" class="mono text-sm text-zinc-300 mb-3">—</div>
+
+            <label class="text-[10px] text-zinc-500 uppercase tracking-widest">Phone</label>
+            <div class="flex gap-2 mb-1">
+                <input id="pf-phone" class="pos-input" style="width:100%;" placeholder="e.g. +251…">
+                <button id="pf-save-phone" class="jog-btn text-sm" style="white-space:nowrap;">Save</button>
             </div>
+            <div id="pf-phone-msg" class="text-[11px] mb-4" style="min-height:14px;"></div>
+
+            <div class="border-t border-white/10 my-2"></div>
+            <h3 class="text-sm font-bold mt-3 mb-1">&#128276; Telegram alerts</h3>
+            <p class="text-[11px] text-zinc-500 mb-3">Get a message when <b>your</b> machine reports a fault. One bot serves everyone; your code links it to your account only.</p>
+            <div id="tg-status" class="text-[13px] mb-3"></div>
+
+            <div id="tg-connect-wrap">
+                <button id="tg-connect" class="py-2.5 rounded-lg bg-yellow-500 text-black font-bold text-sm hover:bg-yellow-400 transition-colors" style="width:100%;">Connect Telegram</button>
+            </div>
+
+            <!-- shown after a code is generated -->
+            <div id="tg-code-box" class="hidden">
+                <p class="text-[12px] mb-2">1. Open the bot: <a id="tg-bot-link" href="#" target="_blank" class="text-yellow-500 font-bold">open bot</a></p>
+                <p class="text-[12px] mb-1">2. Send it this code (or tap the link — it fills it in):</p>
+                <div class="flex gap-2 items-center mb-2">
+                    <code id="tg-code" class="mono text-yellow-500" style="background:#0e0e12;border:1px solid var(--glow-dim);border-radius:8px;padding:8px 10px;flex:1;letter-spacing:1px;">…</code>
+                    <button id="tg-copy" class="jog-btn text-sm">Copy</button>
+                </div>
+                <p class="text-[10px] text-zinc-600">Valid 15 min. Reopen this to confirm it shows “Connected”.</p>
+            </div>
+
             <button id="tg-close" class="text-[11px] text-zinc-500 hover:text-zinc-300 mt-4">Close</button>
         </div>
     </div>
@@ -547,7 +572,7 @@
                 </div>
                 <span class="text-[9px] text-zinc-400 mono uppercase" id="power-status" data-i18n="power">3-Phase: -- Sensing</span>
             </div>
-            <button id="tg-alerts-btn" class="lang-dropdown hidden" title="Telegram alerts" style="padding:8px 12px; font-size:14px;">&#128276;</button>
+            <button id="tg-alerts-btn" class="lang-dropdown hidden" title="My profile" style="padding:8px 12px; font-size:14px;">&#128100;</button>
             <button id="session-chip" class="lang-dropdown hidden" title="Sign out" style="padding:6px 12px; font-size:10px; display:flex; align-items:center; gap:6px;">
                 <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#00e676]"></span>
                 <span id="session-label" class="mono uppercase tracking-widest">LOCAL</span>
@@ -2014,35 +2039,60 @@
             showLogin();
         }
 
-        // ---- Per-customer Telegram alerts (link this account's Telegram) ----
+        // ---- My Profile + per-customer Telegram linking ----
         function showTgBtn(show){ const b=document.getElementById('tg-alerts-btn'); if(b) b.classList.toggle('hidden', !show); }
 
         async function openTelegramModal(){
             const modal=document.getElementById('telegram-modal');
             const status=document.getElementById('tg-status');
             const wrap=document.getElementById('tg-connect-wrap');
-            status.textContent='Checking…'; modal.classList.remove('hidden');
-            let linked=false;
-            try{ const {data}=await sb.from('profiles').select('telegram_chat_id').eq('id',currentUserId).maybeSingle(); linked=!!(data&&data.telegram_chat_id); }catch(e){}
+            modal.classList.remove('hidden');
+            document.getElementById('tg-code-box').classList.add('hidden');
+            document.getElementById('pf-phone-msg').textContent='';
+            // account email
+            let email=''; try{ const {data}=await sb.auth.getUser(); email=(data&&data.user)?data.user.email:''; }catch(e){}
+            document.getElementById('pf-email').textContent=email||'—';
+            // profile: phone + telegram link status
+            status.textContent='Checking…';
+            let linked=false, phone='';
+            try{ const {data}=await sb.from('profiles').select('telegram_chat_id,phone').eq('id',currentUserId).maybeSingle(); if(data){ linked=!!data.telegram_chat_id; phone=data.phone||''; } }catch(e){}
+            document.getElementById('pf-phone').value=phone;
             if(linked){ status.innerHTML='<span style="color:#00e676">✓ Connected.</span> Your machines’ faults go to your Telegram. Send /unlink in the chat to stop.'; wrap.style.display='none'; }
             else { status.textContent='Not connected yet.'; wrap.style.display='block'; }
         }
-        async function connectTelegram(){
+        async function savePhone(){
+            const msg=document.getElementById('pf-phone-msg');
+            const phone=document.getElementById('pf-phone').value.trim();
+            msg.style.color=''; msg.textContent='Saving…';
+            try{ const {error}=await sb.from('profiles').update({phone}).eq('id',currentUserId); if(error) throw error; msg.style.color='#00e676'; msg.textContent='Saved.'; }
+            catch(e){ msg.style.color='#ff5a4d'; msg.textContent='Could not save: '+(e.message||'error'); }
+        }
+        async function getTelegramCode(){
             const btn=document.getElementById('tg-connect');
             const user=(window.AD_CONFIG&&window.AD_CONFIG.TELEGRAM_BOT_USERNAME)||'';
-            if(!user||user==='YourAdysBot'){ document.getElementById('tg-status').innerHTML='<span style="color:#ff5a4d">Set TELEGRAM_BOT_USERNAME in config.js to your bot’s @username first.</span>'; return; }
+            if(!user||user==='YourAdysBot'||user==='YourBotsUsername'){ document.getElementById('tg-status').innerHTML='<span style="color:#ff5a4d">Set TELEGRAM_BOT_USERNAME in config.js to your bot’s @username first.</span>'; return; }
             btn.disabled=true; btn.textContent='Generating…';
             try{
                 const {data,error}=await sb.rpc('create_telegram_link_code');
                 if(error) throw error;
-                window.open('https://t.me/'+user+'?start='+encodeURIComponent(data),'_blank');
-                document.getElementById('tg-status').innerHTML='Telegram should open — tap <b>Start</b> there, then reopen this to confirm. (Code valid 15 min.)';
-            }catch(e){ document.getElementById('tg-status').innerHTML='<span style="color:#ff5a4d">Could not start linking: '+(e.message||'error')+'</span>'; }
+                document.getElementById('tg-code').textContent=data;
+                const link=document.getElementById('tg-bot-link');
+                link.href='https://t.me/'+user+'?start='+encodeURIComponent(data);
+                link.textContent='@'+user;
+                document.getElementById('tg-code-box').classList.remove('hidden');
+                document.getElementById('tg-connect-wrap').style.display='none';
+            }catch(e){ document.getElementById('tg-status').innerHTML='<span style="color:#ff5a4d">Could not get a code: '+(e.message||'error')+'</span>'; }
             finally{ btn.disabled=false; btn.textContent='Connect Telegram'; }
+        }
+        function copyTgCode(){
+            const code=document.getElementById('tg-code').textContent; const b=document.getElementById('tg-copy');
+            try{ navigator.clipboard.writeText(code); b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1500); }catch(e){ b.textContent='Copy failed'; }
         }
         function setupTelegram(){
             const b=document.getElementById('tg-alerts-btn'); if(b) b.addEventListener('click',openTelegramModal);
-            document.getElementById('tg-connect').addEventListener('click',connectTelegram);
+            document.getElementById('tg-connect').addEventListener('click',getTelegramCode);
+            document.getElementById('tg-copy').addEventListener('click',copyTgCode);
+            document.getElementById('pf-save-phone').addEventListener('click',savePhone);
             document.getElementById('tg-close').addEventListener('click',()=>document.getElementById('telegram-modal').classList.add('hidden'));
             document.getElementById('telegram-modal').addEventListener('click',e=>{ if(e.target.id==='telegram-modal') document.getElementById('telegram-modal').classList.add('hidden'); });
         }
