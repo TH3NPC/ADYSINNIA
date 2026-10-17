@@ -487,9 +487,7 @@
                 <button type="button" id="login-toggle" class="text-[11px] text-yellow-500 hover:text-yellow-400">Create account</button>
                 <button type="button" id="login-forgot" class="text-[11px] text-zinc-500 hover:text-zinc-300">Forgot password?</button>
             </div>
-            <div class="border-t border-white/10 my-4"></div>
-            <button type="button" id="login-local" class="py-2.5 rounded-lg bg-zinc-800 text-sm hover:bg-zinc-700 transition-colors" style="width:100%;">Continue on local network</button>
-            <p class="text-[10px] text-zinc-600 mt-2 leading-snug">Cloud accounts &amp; machine pairing are enforced by the server (cloud release). On your LAN you can control a machine directly.</p>
+            <p class="text-[10px] text-zinc-600 mt-4 leading-snug">Sign in to monitor and control your machine. Accounts and machine pairing are secured in the cloud.</p>
         </div>
     </div>
 
@@ -1958,9 +1956,8 @@
                     if (data && data.session) return enterCloud(data.session);
                 } catch (e) {}
             }
-            // Local-network mode (a persisted choice; talks straight to the ESP32).
-            const s = readSession();
-            if (s && s.mode === 'local') { cloudMode = false; updateSessionChip(s); showTgBtn(true); return enterDashboard(); }
+            // No cloud session -> this is a login-gated website; show sign in.
+            clearSession();   // drop any stale local-mode flag from older builds
             showLogin();
         }
 
@@ -2186,7 +2183,6 @@
                 else doLogin(email, pass);
             });
             document.getElementById('login-toggle').addEventListener('click', () => setLoginMode(loginMode==='signin'?'signup':'signin'));
-            document.getElementById('login-local').addEventListener('click', continueLocal);
             document.getElementById('login-forgot').addEventListener('click', async () => {
                 const err = document.getElementById('login-error');
                 const email = document.getElementById('login-email').value.trim();
