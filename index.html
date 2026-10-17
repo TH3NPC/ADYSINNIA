@@ -503,6 +503,20 @@
         </div>
     </div>
 
+    <!-- Telegram alerts (per-customer): link your Telegram to get this machine's faults -->
+    <div id="telegram-modal" class="modal-overlay fixed inset-0 flex items-center justify-center hidden" style="z-index:72;">
+        <div class="glass-card border border-yellow-500/30 rounded-2xl p-6 w-[360px] max-w-[92vw]">
+            <h2 class="text-base font-bold mb-1">&#128276; Telegram alerts</h2>
+            <p class="text-[11px] text-zinc-500 mb-4">Get a message when your machine reports a fault. Only your machines' faults go to your Telegram.</p>
+            <div id="tg-status" class="text-[13px] mb-4"></div>
+            <div id="tg-connect-wrap">
+                <button id="tg-connect" class="w-full py-2.5 rounded-lg bg-yellow-500 text-black font-bold text-sm hover:bg-yellow-400 transition-colors" style="width:100%;">Connect Telegram</button>
+                <p class="text-[10px] text-zinc-600 mt-2 leading-snug">Opens Telegram with a one-time link code. Tap <b>Start</b> there to finish.</p>
+            </div>
+            <button id="tg-close" class="text-[11px] text-zinc-500 hover:text-zinc-300 mt-4">Close</button>
+        </div>
+    </div>
+
     <!-- Navigation -->
     <nav class="reveal w-full max-w-7xl flex items-start justify-between mb-5 lg:mb-8 border-b border-white/10 pb-4 lg:pb-6" style="--i:0">
         <div class="flex flex-col">
@@ -533,6 +547,7 @@
                 </div>
                 <span class="text-[9px] text-zinc-400 mono uppercase" id="power-status" data-i18n="power">3-Phase: -- Sensing</span>
             </div>
+            <button id="tg-alerts-btn" class="lang-dropdown hidden" title="Telegram alerts" style="padding:8px 12px; font-size:14px;">&#128276;</button>
             <button id="session-chip" class="lang-dropdown hidden" title="Sign out" style="padding:6px 12px; font-size:10px; display:flex; align-items:center; gap:6px;">
                 <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#00e676]"></span>
                 <span id="session-label" class="mono uppercase tracking-widest">LOCAL</span>
@@ -1038,6 +1053,7 @@
         let cloudMode = false;             // true once signed in via Supabase
         let currentMachineId = null;       // the machine this dashboard is bound to (cloud mode)
         let currentUserId = null;          // auth.uid() in cloud mode (for command rows)
+        const CLOUD_STALE_MS = 12000;      // status older than this => machine treated offline
 
         let currentLang = 'en';
         let pollingInterval = null;
@@ -1331,12 +1347,22 @@
                 let data;
                 if (cloudMode && sb && currentMachineId) {
                     // Cloud: read the latest status the device posted (machine_status.raw
-                    // holds the full status object, same shape as /api/status).
+                    // holds the full status object; ts is when the device last reported).
                     const { data: row, error } = await sb.from('machine_status')
-                        .select('raw').eq('machine_id', currentMachineId).maybeSingle();
+                        .select('raw, ts').eq('machine_id', currentMachineId).maybeSingle();
                     document.getElementById('latency').innerText = 'cloud';
                     document.getElementById('last-update-time').innerText = new Date().toLocaleTimeString();
                     if (error || !row || !row.raw) { setConn(false); return false; }  // machine hasn't reported yet
+                    // STALENESS: the device posts ~every 2 s. If the newest row is old,
+                    // the machine has gone offline — show it as offline, don't present a
+                    // stale snapshot as "live" (a monitoring dashboard must not mislead).
+                    const ageMs = Date.now() - new Date(row.ts).getTime();
+                    if (ageMs > CLOUD_STALE_MS) {
+                        const banner = document.getElementById('conn-banner-text');
+                        if (banner) banner.innerText = 'Machine offline — last report ' + Math.round(ageMs / 1000) + 's ago';
+                        setConn(false);
+                        return false;
+                    }
                     data = row.raw;
                     setConn(true);
                 } else {
@@ -1894,6 +1920,7 @@
             cloudMode = true;
             currentUserId = session.user ? session.user.id : null;
             updateSessionChip({ mode: 'cloud', email: session.user && session.user.email });
+            showTgBtn(true);   // Telegram alert linking is for signed-in (cloud) users
             try {
                 const { data, error } = await sb.from('machine_owners').select('machine_id').limit(1);
                 if (!error && data && data.length) {
@@ -1936,7 +1963,7 @@
         function continueLocal() {
             const sess = { mode: 'local', email: null, exp: Date.now() + 30 * 86400000 };
             writeSession(sess); updateSessionChip(sess);
-            cloudMode = false; currentMachineId = null;
+            cloudMode = false; currentMachineId = null; showTgBtn(false);
             document.getElementById('login-overlay').classList.add('hidden');
             enterDashboard();
         }
@@ -1978,7 +2005,7 @@
 
         async function signOut() {
             try { if (sb) await sb.auth.signOut(); } catch (e) {}
-            clearSession(); updateSessionChip(null);
+            clearSession(); updateSessionChip(null); showTgBtn(false);
             cloudMode = false; currentMachineId = null; currentUserId = null;
             if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
             pollingStarted = false;
@@ -1987,7 +2014,41 @@
             showLogin();
         }
 
+        // ---- Per-customer Telegram alerts (link this account's Telegram) ----
+        function showTgBtn(show){ const b=document.getElementById('tg-alerts-btn'); if(b) b.classList.toggle('hidden', !show); }
+
+        async function openTelegramModal(){
+            const modal=document.getElementById('telegram-modal');
+            const status=document.getElementById('tg-status');
+            const wrap=document.getElementById('tg-connect-wrap');
+            status.textContent='Checking…'; modal.classList.remove('hidden');
+            let linked=false;
+            try{ const {data}=await sb.from('profiles').select('telegram_chat_id').eq('id',currentUserId).maybeSingle(); linked=!!(data&&data.telegram_chat_id); }catch(e){}
+            if(linked){ status.innerHTML='<span style="color:#00e676">✓ Connected.</span> Your machines’ faults go to your Telegram. Send /unlink in the chat to stop.'; wrap.style.display='none'; }
+            else { status.textContent='Not connected yet.'; wrap.style.display='block'; }
+        }
+        async function connectTelegram(){
+            const btn=document.getElementById('tg-connect');
+            const user=(window.AD_CONFIG&&window.AD_CONFIG.TELEGRAM_BOT_USERNAME)||'';
+            if(!user||user==='YourAdysBot'){ document.getElementById('tg-status').innerHTML='<span style="color:#ff5a4d">Set TELEGRAM_BOT_USERNAME in config.js to your bot’s @username first.</span>'; return; }
+            btn.disabled=true; btn.textContent='Generating…';
+            try{
+                const {data,error}=await sb.rpc('create_telegram_link_code');
+                if(error) throw error;
+                window.open('https://t.me/'+user+'?start='+encodeURIComponent(data),'_blank');
+                document.getElementById('tg-status').innerHTML='Telegram should open — tap <b>Start</b> there, then reopen this to confirm. (Code valid 15 min.)';
+            }catch(e){ document.getElementById('tg-status').innerHTML='<span style="color:#ff5a4d">Could not start linking: '+(e.message||'error')+'</span>'; }
+            finally{ btn.disabled=false; btn.textContent='Connect Telegram'; }
+        }
+        function setupTelegram(){
+            const b=document.getElementById('tg-alerts-btn'); if(b) b.addEventListener('click',openTelegramModal);
+            document.getElementById('tg-connect').addEventListener('click',connectTelegram);
+            document.getElementById('tg-close').addEventListener('click',()=>document.getElementById('telegram-modal').classList.add('hidden'));
+            document.getElementById('telegram-modal').addEventListener('click',e=>{ if(e.target.id==='telegram-modal') document.getElementById('telegram-modal').classList.add('hidden'); });
+        }
+
         function setupAuth() {
+            setupTelegram();
             document.getElementById('login-form').addEventListener('submit', (e) => {
                 e.preventDefault();
                 doLogin(document.getElementById('login-email').value.trim(), document.getElementById('login-pass').value);
