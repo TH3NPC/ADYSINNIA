@@ -1,0 +1,2042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>BAKING ZONE | CORE SYSTEM v2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --glow: #ffb300;
+            --glow-dim: rgba(255, 179, 0, 0.3);
+            --ember: #ff8c00;
+            --bg-dark: #050505;
+            --surface: #0f0f11;
+            --surface-light: #1a1a1f;
+            --border-glow: rgba(255, 179, 0, 0.28);
+            --success: #00e676;
+            --danger: #ff3b30;
+            --warning: #ff9500;
+            --ease: cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            font-family: 'Space Grotesk', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background-image:
+                radial-gradient(circle at 50% -20%, rgba(255, 179, 0, 0.08) 0%, transparent 60%),
+                repeating-linear-gradient(rgba(255, 255, 255, 0.02) 0px, rgba(255, 255, 255, 0.02) 1px, transparent 1px, transparent 41px),
+                repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.02) 0px, rgba(255, 255, 255, 0.02) 1px, transparent 1px, transparent 41px);
+            background-size: 100% 100%, 42px 42px, 42px 42px;
+            min-height: 100vh;
+        }
+        .mono { font-family: 'Space Mono', monospace; }
+
+        /* ---------- Ambient layer: slow drifting heat glow + film grain ---------- */
+        .ambient { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+        .ambient::before {
+            content: ''; position: absolute; inset: -25%;
+            background:
+                radial-gradient(38% 32% at 18% 8%, rgba(255, 179, 0, 0.12), transparent 70%),
+                radial-gradient(32% 28% at 88% 34%, rgba(255, 120, 0, 0.08), transparent 70%),
+                radial-gradient(40% 30% at 50% 108%, rgba(255, 179, 0, 0.07), transparent 70%);
+            animation: drift 28s ease-in-out infinite alternate;
+            transition: filter 1.2s ease;
+        }
+        .ambient::after {
+            content: ''; position: absolute; inset: 0; opacity: 0.05; mix-blend-mode: overlay;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+        }
+        @keyframes drift {
+            from { transform: translate3d(-2%, -1%, 0) scale(1); }
+            to   { transform: translate3d(2%, 2%, 0) scale(1.08); }
+        }
+        /* The whole page reacts to machine state */
+        body[data-state="running"] .ambient::before { filter: saturate(1.4) brightness(1.4); }
+        body[data-state="estop"] .ambient::before { filter: hue-rotate(-40deg) saturate(1.7); }
+        body[data-state="estop"]::after {
+            content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 40;
+            box-shadow: inset 0 0 160px rgba(255, 59, 48, 0.3);
+            animation: estopPulse 1.1s ease-in-out infinite alternate;
+        }
+        @keyframes estopPulse { from { opacity: 0.5; } to { opacity: 1; } }
+
+        /* ---------- One orchestrated entrance ---------- */
+        .reveal { animation: reveal 0.9s var(--ease) both; animation-delay: calc(var(--i, 0) * 80ms); }
+        @keyframes reveal { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+        /* ---------- Brand sheen (plays once) ---------- */
+        .sheen {
+            background: linear-gradient(100deg, #fff 0%, #fff 42%, #ffe08a 50%, #fff 58%, #fff 100%);
+            background-size: 250% 100%; background-position: 100% 0;
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+            animation: sheen 2.6s var(--ease) 0.9s 1 both;
+        }
+        @keyframes sheen { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+
+        /* ---------- Glass cards: gradient surface, amber top-edge, cursor spotlight ---------- */
+        .glass-card {
+            position: relative;
+            background: linear-gradient(180deg, rgba(24, 24, 28, 0.74), rgba(12, 12, 14, 0.8));
+            -webkit-backdrop-filter: blur(22px) saturate(140%);
+            backdrop-filter: blur(22px) saturate(140%);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 50px -14px rgba(0, 0, 0, 0.7);
+            transition: border-color 0.35s ease, box-shadow 0.35s ease;
+        }
+        .glass-card::before {
+            content: ''; position: absolute; left: 12%; right: 12%; top: 0; height: 1px; pointer-events: none;
+            background: linear-gradient(90deg, transparent, rgba(255, 179, 0, 0.4), transparent); opacity: 0.55;
+            transition: opacity 0.35s ease;
+        }
+        .glass-card::after {
+            content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0;
+            background: radial-gradient(380px circle at var(--mx, 50%) var(--my, 0%), rgba(255, 179, 0, 0.075), transparent 60%);
+            transition: opacity 0.35s ease;
+        }
+        .glass-card:hover {
+            border-color: var(--border-glow);
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 22px 60px -14px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 179, 0, 0.08);
+        }
+        .glass-card:hover::before { opacity: 1; }
+        .glass-card:hover::after { opacity: 1; }
+
+        /* ---------- Production card ---------- */
+        .glass-card.prod-card {
+            background: linear-gradient(135deg, #ffb300 0%, #ff8c00 100%);
+            border-color: rgba(255, 255, 255, 0.28);
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 24px 60px -18px rgba(255, 140, 0, 0.45);
+        }
+        .prod-card::before { background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent); }
+        .prod-card::after { background: radial-gradient(320px circle at var(--mx, 50%) var(--my, 0%), rgba(255, 255, 255, 0.22), transparent 60%); }
+        .prod-card > *:not(.sheen-band) { position: relative; z-index: 1; }
+        .sheen-band {
+            position: absolute; inset: 0; pointer-events: none; z-index: 0; transform: translateX(-100%);
+            background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.3) 50%, transparent 65%);
+        }
+        body[data-state="running"] .sheen-band { animation: sweep 3.4s ease-in-out infinite; }
+        @keyframes sweep { 0% { transform: translateX(-100%); } 60%, 100% { transform: translateX(100%); } }
+        .cycle-track { height: 4px; border-radius: 4px; background: rgba(0, 0, 0, 0.22); overflow: hidden; margin-top: 8px; }
+        #cycle-bar { height: 100%; width: 0%; border-radius: 4px; background: #000; transition: width 0.9s var(--ease); }
+        .btn-start {
+            background: #000; color: #ffb300; border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            transition: transform 0.2s var(--ease), background 0.25s, color 0.25s, box-shadow 0.25s;
+        }
+        .btn-start:hover:not(:disabled) { background: #fff; color: #000; box-shadow: 0 10px 26px -8px rgba(0, 0, 0, 0.5); transform: translateY(-1px); }
+        .btn-start:active:not(:disabled) { transform: scale(0.97); }
+        .btn-start:disabled { opacity: 0.75; cursor: progress; animation: breathe 1.2s ease-in-out infinite alternate; }
+        @keyframes breathe { from { opacity: 0.55; } to { opacity: 0.95; } }
+
+        /* ---------- Action bar ---------- */
+        .action-btn {
+            position: relative; overflow: hidden;
+            transition: transform 0.2s var(--ease), border-color 0.25s, box-shadow 0.25s, background 0.25s;
+        }
+        .action-btn:hover { transform: translateY(-1px); box-shadow: 0 12px 30px -12px var(--btn-glow, rgba(255, 179, 0, 0.4)); }
+        .action-btn:active { transform: scale(0.985); }
+        .btn-home { --btn-glow: rgba(255, 179, 0, 0.45); }
+        .btn-run  { --btn-glow: rgba(0, 230, 118, 0.4); }
+        .btn-halt { --btn-glow: rgba(255, 59, 48, 0.5); }
+
+        /* ---------- Baking plates ---------- */
+        .plate-btn {
+            position: relative;
+            --heat: 0;
+            background:
+                radial-gradient(90% 90% at 50% 100%, rgba(255, 140, 0, calc(var(--heat) * 0.32)) 0%, transparent 70%),
+                linear-gradient(160deg, #0d0d10, #08080a);
+            border: 1.5px solid #222;
+            aspect-ratio: 1;
+            transition: border-color 0.3s ease, box-shadow 0.4s ease, background 0.9s ease;
+            cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            overflow: hidden;
+        }
+        .plate-btn::before {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255, 179, 0, 0.16) 0%, transparent 70%);
+            opacity: 0; transition: opacity 0.25s;
+        }
+        .plate-btn:hover::before { opacity: 1; }
+        .plate-btn:hover { border-color: var(--glow-dim); }
+        /* Targeting reticle marks where the carriage is */
+        .plate-btn::after {
+            content: ''; position: absolute; inset: 10px; pointer-events: none; opacity: 0; transform: scale(1.1);
+            transition: opacity 0.3s ease, transform 0.45s var(--ease);
+            background:
+                linear-gradient(var(--glow), var(--glow)) top left / 14px 1.5px no-repeat,
+                linear-gradient(var(--glow), var(--glow)) top left / 1.5px 14px no-repeat,
+                linear-gradient(var(--glow), var(--glow)) top right / 14px 1.5px no-repeat,
+                linear-gradient(var(--glow), var(--glow)) top right / 1.5px 14px no-repeat,
+                linear-gradient(var(--glow), var(--glow)) bottom left / 14px 1.5px no-repeat,
+                linear-gradient(var(--glow), var(--glow)) bottom left / 1.5px 14px no-repeat,
+                linear-gradient(var(--glow), var(--glow)) bottom right / 14px 1.5px no-repeat,
+                linear-gradient(var(--glow), var(--glow)) bottom right / 1.5px 14px no-repeat;
+        }
+        .plate-btn.active {
+            border-color: var(--glow);
+            box-shadow: inset 0 0 25px rgba(255, 179, 0, 0.08), 0 0 24px rgba(255, 179, 0, 0.16);
+        }
+        .plate-btn.active::after { opacity: 1; transform: scale(1); }
+        .plate-btn.active .plate-id { color: var(--glow); text-shadow: 0 0 10px var(--glow); opacity: 0.95; }
+        .plate-id { transition: color 0.3s, text-shadow 0.3s, opacity 0.3s; position: relative; z-index: 1; }
+        .plate-btn.pressing { transform: scale(0.97); }
+        .plate-btn.plate-disabled { opacity: 0.4; filter: grayscale(0.6); }
+        body[data-state="running"] .plate-btn.active { animation: plateBreath 2.2s ease-in-out infinite alternate; }
+        @keyframes plateBreath {
+            from { box-shadow: inset 0 0 25px rgba(255, 179, 0, 0.08), 0 0 14px rgba(255, 179, 0, 0.12); }
+            to   { box-shadow: inset 0 0 32px rgba(255, 179, 0, 0.16), 0 0 34px rgba(255, 179, 0, 0.28); }
+        }
+
+        /* ---------- Status ---------- */
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+            animation: pulse 1.8s infinite;
+            transition: background 0.4s;
+        }
+        .status-dot.offline { animation: none; box-shadow: 0 0 10px rgba(255, 59, 48, 0.7); }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.4); }
+            50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(0, 230, 118, 0); }
+        }
+        .vbar { transition: background 0.6s ease; }
+        .vbar.lit { background: #eab308 !important; }
+
+        #status-badge { display: inline-flex; align-items: center; gap: 8px; transition: color 0.3s, border-color 0.3s, background 0.3s; }
+        #status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+        #status-badge[data-state="RUNNING"] { color: var(--success); border-color: rgba(0, 230, 118, 0.4); background: rgba(0, 230, 118, 0.08); }
+        #status-badge[data-state="RUNNING"]::before, #status-badge[data-state="CALIBRATING"]::before,
+        #status-badge[data-state="HEATING"]::before, #status-badge[data-state="PRE_HEATING"]::before { animation: blink 1.1s ease-in-out infinite; }
+        #status-badge[data-state="HEATING"], #status-badge[data-state="PRE_HEATING"] { color: var(--warning); border-color: rgba(255, 149, 0, 0.4); background: rgba(255, 149, 0, 0.08); }
+        #status-badge[data-state="ESTOP"] { color: var(--danger); border-color: rgba(255, 59, 48, 0.5); background: rgba(255, 59, 48, 0.1); }
+        #status-badge[data-state="ESTOP"]::before { animation: blink 0.5s steps(2) infinite; }
+        @keyframes blink { 50% { opacity: 0.25; } }
+
+        /* ---------- Sliders with filled track ---------- */
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none; width: 100%; height: 3px; border-radius: 3px; outline: none;
+            background: linear-gradient(90deg, var(--glow) var(--p, 50%), #24242b var(--p, 50%));
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 16px; height: 16px;
+            background: #0a0a0c; border: 2px solid var(--glow); border-radius: 50%; cursor: pointer;
+            box-shadow: 0 0 12px rgba(255, 179, 0, 0.7); transition: transform 0.15s var(--ease), box-shadow 0.15s;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 12px; height: 12px; background: #0a0a0c; border: 2px solid var(--glow); border-radius: 50%; cursor: pointer;
+            box-shadow: 0 0 12px rgba(255, 179, 0, 0.7);
+        }
+        input[type="range"]::-moz-range-track { background: transparent; }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.25); }
+        input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.35); box-shadow: 0 0 18px rgba(255, 179, 0, 0.95); }
+        .bump { animation: bump 0.25s var(--ease); }
+        @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+
+        /* ---------- Thermal dial: the hero ---------- */
+        .thermal-display {
+            --dial: 0;
+            position: relative; border-radius: 50%;
+            background: radial-gradient(ellipse at center, #1c1608 0%, #0a0a0a 72%);
+            border: 1px solid rgba(255, 179, 0, 0.2);
+            box-shadow: 0 0 60px -8px rgba(255, 179, 0, calc(0.05 + var(--dial) * 0.3)), inset 0 0 40px rgba(0, 0, 0, 0.65);
+            transition: box-shadow 1s ease, border-color 0.6s ease;
+        }
+        .thermal-display::before {
+            content: ''; position: absolute; inset: 14%; border-radius: 50%; pointer-events: none;
+            background: repeating-conic-gradient(rgba(255, 255, 255, 0.16) 0deg 1deg, transparent 1deg 9deg);
+            -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
+            mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
+        }
+        .thermal-display.at-temp { border-color: rgba(0, 230, 118, 0.35); --arc-a: #00e676; --arc-b: #00c853; }
+        .dial-stop-a { stop-color: var(--arc-a, #ffb300); transition: stop-color 0.8s; }
+        .dial-stop-b { stop-color: var(--arc-b, #ff6a00); transition: stop-color 0.8s; }
+        #dial-arc { transition: stroke-dashoffset 1.1s var(--ease); filter: drop-shadow(0 0 6px rgba(255, 179, 0, 0.55)); }
+        .thermal-display.at-temp #dial-arc { filter: drop-shadow(0 0 7px rgba(0, 230, 118, 0.6)); }
+        .sensor-dot {
+            width: 5px; height: 5px; background: var(--glow); border-radius: 50%;
+            position: absolute; box-shadow: 0 0 8px var(--glow); opacity: 0.15; transition: opacity 0.8s ease;
+        }
+        #dial-target { font-size: 8px; letter-spacing: 0.18em; color: #a1a1aa; margin-top: 2px; transition: color 0.5s; }
+        .thermal-display.at-temp #dial-target { color: var(--success); }
+
+        /* ---------- Language + inputs ---------- */
+        .lang-dropdown {
+            background: rgba(15, 15, 17, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 30px; padding: 4px 14px; font-size: 11px; font-weight: 600; color: #fff;
+            outline: none; cursor: pointer; transition: all 0.2s;
+        }
+        .lang-dropdown:hover { border-color: var(--glow-dim); }
+        #settings-btn { transition: transform 0.5s var(--ease), border-color 0.2s; }
+        #settings-btn:hover { transform: rotate(60deg); }
+
+        /* ---------- Heater tiles ---------- */
+        .heater-tile {
+            position: relative; overflow: hidden;
+            background: rgba(0, 0, 0, 0.5); border-radius: 12px; padding: 12px;
+            transition: border-color 0.25s, background 0.25s, transform 0.25s var(--ease);
+            cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.05);
+            user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+        }
+        .heater-tile:hover { border-color: var(--glow-dim); transform: scale(1.02); }
+        .heater-tile.active { border-color: var(--glow); background: rgba(255, 179, 0, 0.05); }
+        .heater-tile::after {
+            content: ''; position: absolute; left: 0; bottom: 0; height: 2px; width: 0; background: var(--glow);
+        }
+        .heater-tile.pressing::after { width: 100%; transition: width 0.6s linear; }
+        .heater-tile .ht-temp { color: #52525b; }
+        .heater-tile.active .ht-temp { color: #eab308; }
+        .heater-tile .ht-status { color: #52525b; }
+        .heater-tile.active .ht-status { color: #4ade80; }
+        .ht-fill { transition: width 0.9s var(--ease); }
+        .heater-tile.heating .ht-fill { animation: heatPulse 1.3s ease-in-out infinite alternate; }
+        @keyframes heatPulse { from { filter: brightness(0.9); } to { filter: brightness(1.5); } }
+
+        /* ---------- Log / terminal ---------- */
+        .console-log { font-family: 'Space Mono', monospace; font-size: 9px; line-height: 1.5; }
+        .console-log p { animation: fadeInUp 0.2s ease; border-left: 1px solid var(--glow-dim); padding-left: 8px; margin-bottom: 6px; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ---------- Modals ---------- */
+        .modal-overlay { background: rgba(0, 0, 0, 0.82); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); animation: fadeIn 0.25s ease; }
+        .modal-overlay > div { animation: popIn 0.35s var(--ease); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+
+        /* ---- Phase 4: overlays, banners, safety states ---- */
+        .overlay-full { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+            -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); animation: fadeIn 0.25s ease; }
+        .overlay-full.hidden { display: none; }
+        .boot-spinner { width: 34px; height: 34px; border-radius: 50%;
+            border: 3px solid rgba(255,179,0,0.18); border-top-color: var(--glow); animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .conn-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 70; text-align: center;
+            padding: 7px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+            color: #fff; background: rgba(255, 59, 48, 0.92); box-shadow: 0 2px 14px rgba(0,0,0,0.4); animation: fadeIn 0.2s ease; }
+        .conn-banner.hidden { display: none; }
+        .safety-overlay-estop { background: rgba(40, 6, 6, 0.86); }
+        .safety-overlay-fault { background: rgba(40, 24, 2, 0.86); }
+        .safety-card { max-width: 460px; width: 92vw; text-align: center; padding: 34px 28px; border-radius: 20px;
+            background: rgba(15,15,17,0.92); border: 1px solid rgba(255,59,48,0.4); box-shadow: 0 0 60px rgba(255,59,48,0.25);
+            animation: popIn 0.35s var(--ease); }
+        .safety-card.fault { border-color: rgba(255,149,0,0.45); box-shadow: 0 0 60px rgba(255,149,0,0.22); }
+        .safety-icon { font-size: 44px; line-height: 1; margin-bottom: 10px; animation: safetyPulse 1s ease-in-out infinite; }
+        @keyframes safetyPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+        .admin-tab-content:not(.hidden) { animation: fadeIn 0.3s ease; }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; }
+        ::-webkit-scrollbar-thumb { background: var(--glow); border-radius: 4px; }
+
+        .admin-tab-btn {
+            padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 600;
+            border: 1px solid rgba(255, 255, 255, 0.1); background: transparent; color: #888;
+            cursor: pointer; transition: all 0.2s; white-space: nowrap;
+        }
+        .admin-tab-btn.active { background: var(--glow); color: #000; border-color: var(--glow); }
+        .admin-tab-btn:hover:not(.active) { border-color: var(--glow-dim); color: #ccc; }
+        .terminal-box {
+            background: #000; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px;
+            padding: 10px; font-family: 'Space Mono', monospace; font-size: 10px;
+            color: #0f0; line-height: 1.6; height: 180px; overflow-y: auto;
+        }
+        .terminal-box .t-time { color: #666; }
+        .terminal-box .t-info { color: #0f0; }
+        .terminal-box .t-warn { color: #ff9500; }
+        .terminal-box .t-err { color: #ff3b30; }
+        .terminal-box .t-cmd { color: #00e676; }
+        .pos-input {
+            background: #000; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px;
+            padding: 6px 10px; color: #fff; font-family: 'Space Mono', monospace; font-size: 12px; width: 100%;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .pos-input:focus { outline: none; border-color: var(--glow); box-shadow: 0 0 0 3px rgba(255, 179, 0, 0.12); }
+        .jog-btn {
+            background: #1a1a1f; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px;
+            padding: 10px 16px; color: #fff; font-weight: 700; cursor: pointer; transition: all 0.15s;
+            user-select: none; -webkit-user-select: none;
+        }
+        .jog-btn:hover { border-color: var(--glow); background: rgba(255, 179, 0, 0.1); }
+        .jog-btn:active { transform: scale(0.95); background: rgba(255, 179, 0, 0.2); }
+        /* selected thickness setting (Thin/Medium/Thick) — same accent as plate/heater active */
+        .jog-btn.active { border-color: var(--glow); background: rgba(255, 179, 0, 0.12); color: #eab308; }
+        .toggle-switch { width: 40px; height: 20px; background: #333; border-radius: 10px; position: relative; cursor: pointer; transition: all 0.2s; }
+        .toggle-switch.on { background: var(--glow); }
+        .toggle-switch::after {
+            content: ''; position: absolute; width: 16px; height: 16px; background: #fff; border-radius: 50%;
+            top: 2px; left: 2px; transition: all 0.25s var(--ease);
+        }
+        .toggle-switch.on::after { left: 22px; }
+        summary::-webkit-details-marker { display: none; }
+
+        /* ---------- Toasts ---------- */
+        #toasts {
+            position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 70;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            pointer-events: none; width: max-content; max-width: 92vw;
+        }
+        .toast {
+            display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 999px;
+            background: rgba(15, 15, 17, 0.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1); color: #fff;
+            font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+            animation: toastIn 0.4s var(--ease) both;
+        }
+        .toast i { width: 6px; height: 6px; border-radius: 50%; background: var(--glow); box-shadow: 0 0 8px var(--glow); flex-shrink: 0; }
+        .toast.ok i { background: var(--success); box-shadow: 0 0 8px var(--success); }
+        .toast.warn i { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+        .toast.err i { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+        .toast.out { animation: toastOut 0.3s ease forwards; }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(12px) scale(0.96); } to { opacity: 1; transform: none; } }
+        @keyframes toastOut { to { opacity: 0; transform: translateY(8px) scale(0.96); } }
+
+
+        /* ---------- Mobile-first layout ---------- */
+        .action-bar {
+            position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+            display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 8px;
+            padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+            background: linear-gradient(180deg, transparent, rgba(5, 5, 5, 0.9) 35%);
+            -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .stat {
+            display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; min-width: 0;
+            background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px;
+        }
+        .stat-l { font-size: 9px; letter-spacing: 0.06em; color: #a1a1aa; }
+        .stat-v { font-family: 'Space Mono', monospace; font-size: 14px; font-weight: 700; }
+        @media (max-width: 1023px) {
+            body { padding-bottom: 104px !important; }
+            #toasts { bottom: calc(92px + env(safe-area-inset-bottom)); }
+        }
+        @media (min-width: 1024px) {
+            .action-bar {
+                position: static; z-index: auto; width: 100%; max-width: 80rem; margin-bottom: 1.5rem;
+                padding: 0; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;
+                background: none; -webkit-backdrop-filter: none; backdrop-filter: none; border-top: 0;
+            }
+        }
+
+        /* ---------- Accessibility ---------- */
+        :focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+        .plate-btn:focus-visible { outline-offset: -4px; }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+                transition-duration: 0.001ms !important; scroll-behavior: auto !important;
+            }
+        }
+        @media (max-width: 640px) {
+            .plate-btn { min-height: 64px; }
+            .jog-btn { padding: 12px 16px; }
+        }
+    </style>
+    <!-- Supabase client + runtime config (Phase 5). Loaded before the app script. -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+</head>
+<body class="min-h-screen p-4 md:p-8 flex flex-col items-center" data-state="idle">
+
+    <div class="ambient" aria-hidden="true"></div>
+
+    <!-- ============ Phase 4: states + auth overlays ============ -->
+
+    <!-- Boot / loading overlay — shown until auth + first machine status resolve -->
+    <div id="boot-overlay" class="overlay-full bg-[#0b0b0d] flex-col gap-5" style="z-index:80;">
+        <div class="text-2xl font-black italic tracking-tighter"><span class="sheen">ADYSINNIA</span> <span class="text-[#ffb300]">IND.</span></div>
+        <div class="boot-spinner"></div>
+        <div id="boot-msg" class="text-[11px] mono text-zinc-500 uppercase tracking-widest">Starting…</div>
+    </div>
+
+    <!-- Connection-lost banner (machine link down) -->
+    <div id="conn-banner" class="conn-banner hidden">
+        <span class="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse mr-2 align-middle"></span>
+        <span id="conn-banner-text">Machine offline — reconnecting…</span>
+    </div>
+
+    <!-- Safety overlay (EMERGENCY STOP / FAULT / RECOVERY REQUIRED) -->
+    <div id="safety-overlay" class="overlay-full hidden" style="z-index:60;">
+        <div class="safety-card">
+            <div id="safety-icon" class="safety-icon">&#x26D4;</div>
+            <h2 id="safety-title" class="text-2xl font-black uppercase tracking-tight mb-2">Emergency Stop</h2>
+            <p id="safety-msg" class="text-sm text-zinc-300 mb-4 leading-relaxed"></p>
+            <p id="safety-note" class="text-[11px] mono text-zinc-500 uppercase tracking-widest"></p>
+        </div>
+    </div>
+
+    <!-- Operator login (UI shell; real auth is server-side — Phase 5) -->
+    <div id="login-overlay" class="modal-overlay fixed inset-0 flex items-center justify-center hidden" style="z-index:75;">
+        <div class="glass-card border border-yellow-500/30 rounded-2xl p-6 w-[360px] max-w-[92vw]">
+            <div class="text-xl font-black italic tracking-tighter mb-1"><span class="sheen">ADYSINNIA</span> <span class="text-[#ffb300]">IND.</span></div>
+            <p class="text-[11px] text-zinc-500 uppercase tracking-widest mb-5">Operator sign in</p>
+            <form id="login-form" class="space-y-3">
+                <input id="login-email" type="email" autocomplete="username" class="pos-input w-full" placeholder="Email" style="width:100%;">
+                <input id="login-pass" type="password" autocomplete="current-password" class="pos-input w-full" placeholder="Password" style="width:100%;">
+                <div id="login-error" class="text-[11px] text-red-400" style="min-height:14px;"></div>
+                <button type="submit" id="login-submit" class="w-full py-2.5 rounded-lg bg-yellow-500 text-black font-bold text-sm hover:bg-yellow-400 transition-colors" style="width:100%;">Sign in</button>
+            </form>
+            <button type="button" id="login-forgot" class="text-[11px] text-zinc-500 hover:text-zinc-300 mt-3">Forgot password?</button>
+            <div class="border-t border-white/10 my-4"></div>
+            <button type="button" id="login-local" class="py-2.5 rounded-lg bg-zinc-800 text-sm hover:bg-zinc-700 transition-colors" style="width:100%;">Continue on local network</button>
+            <p class="text-[10px] text-zinc-600 mt-2 leading-snug">Cloud accounts &amp; machine pairing are enforced by the server (cloud release). On your LAN you can control a machine directly.</p>
+        </div>
+    </div>
+
+    <!-- Machine pairing (shown after cloud login when no machine is paired) -->
+    <div id="pair-overlay" class="modal-overlay fixed inset-0 flex items-center justify-center hidden" style="z-index:75;">
+        <div class="glass-card border border-yellow-500/30 rounded-2xl p-6 w-[360px] max-w-[92vw]">
+            <h2 class="text-base font-bold mb-1">Pair a machine</h2>
+            <p class="text-[11px] text-zinc-500 mb-4">Power on the machine and enter the pairing code shown on its display.</p>
+            <form id="pair-form" class="space-y-3">
+                <input id="pair-code" class="pos-input w-full" placeholder="Machine ID or pairing code" autocomplete="off" style="width:100%;">
+                <div id="pair-error" class="text-[11px] text-red-400" style="min-height:14px;"></div>
+                <button type="submit" class="py-2.5 rounded-lg bg-yellow-500 text-black font-bold text-sm hover:bg-yellow-400 transition-colors" style="width:100%;">Pair</button>
+            </form>
+            <button type="button" id="pair-signout" class="text-[11px] text-zinc-500 hover:text-zinc-300 mt-3">Sign out</button>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="reveal w-full max-w-7xl flex items-start justify-between mb-5 lg:mb-8 border-b border-white/10 pb-4 lg:pb-6" style="--i:0">
+        <div class="flex flex-col">
+            <h1 class="text-2xl md:text-4xl font-black tracking-tighter italic text-white leading-none">
+                <span class="sheen">ADYSINNIA</span> <span class="text-[#ffb300]">IND.</span>
+            </h1>
+            <div class="flex items-center gap-3 mt-2.5 flex-wrap">
+                <span class="status-dot" id="conn-dot" style="background: #00e676;" title="ESP32 connection"></span>
+                <span class="hidden sm:inline text-[9px] mono text-zinc-500 tracking-widest uppercase" data-i18n="systemId">System: AD-PRO-INJERA-V2</span>
+                <select id="lang-selector" class="lang-dropdown" onchange="setLang(this.value)" aria-label="Language">
+                    <option value="en">English (EN)</option>
+                    <option value="am">አማርኛ (Amharic)</option>
+                </select>
+            </div>
+        </div>
+        <div class="flex items-center gap-4 md:gap-6">
+            <div class="text-right hidden md:block">
+                <span class="text-[9px] text-zinc-500 block uppercase mono" data-i18n="tagline">ADYSINNIA AUTOMATION</span>
+                <span class="text-sm font-bold tracking-widest uppercase flex gap-2 justify-end">
+                    <span class="text-zinc-600 text-[10px] self-center">PARTNERED WITH</span><span class="text-[#ffb300]">CURRENT OS</span>
+                </span>
+            </div>
+            <div class="hidden sm:flex flex-col gap-1">
+                <div class="flex gap-1.5">
+                    <div class="vbar h-1 w-6 bg-yellow-500 rounded-full"></div>
+                    <div class="vbar h-1 w-6 bg-yellow-500/30 rounded-full" id="voltage-bar-2"></div>
+                    <div class="vbar h-1 w-6 bg-yellow-500/10 rounded-full" id="voltage-bar-3"></div>
+                </div>
+                <span class="text-[9px] text-zinc-400 mono uppercase" id="power-status" data-i18n="power">3-Phase: -- Sensing</span>
+            </div>
+            <button id="session-chip" class="lang-dropdown hidden" title="Sign out" style="padding:6px 12px; font-size:10px; display:flex; align-items:center; gap:6px;">
+                <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#00e676]"></span>
+                <span id="session-label" class="mono uppercase tracking-widest">LOCAL</span>
+                <span class="text-zinc-500">&#x23FB;</span>
+            </button>
+            <button id="settings-btn" title="Admin Settings" aria-label="Admin Settings" class="lang-dropdown" style="padding:8px 14px; font-size: 16px;">&#x2699;</button>
+        </div>
+    </nav>
+
+    <!-- Action bar: fixed at the thumb on phones, inline on desktop -->
+    <div class="action-bar reveal" style="--i:1">
+        <button onclick="sendCommand('/api/home', 'POST')" class="action-btn btn-home py-4 lg:py-3.5 px-2 bg-zinc-900/90 border border-white/10 rounded-2xl text-[11px] uppercase font-bold hover:border-yellow-500 transition-all flex items-center justify-center text-center leading-tight shadow-lg" data-i18n="homeBtn">Home</button>
+        <button onclick="sendCommand('/api/start', 'POST')" class="action-btn btn-run py-4 lg:py-3.5 px-2 bg-zinc-900/90 border border-white/10 rounded-2xl text-[11px] uppercase font-bold hover:border-green-500 transition-all flex items-center justify-center gap-2 text-center leading-tight shadow-lg" data-i18n="resetBtn">
+            <span>&#x25B6;</span> Start Baking
+        </button>
+        <button onclick="sendCommand('/api/stop', 'POST')" class="action-btn btn-halt py-4 lg:py-3.5 px-2 bg-red-950/50 border border-red-500/30 text-red-400 rounded-2xl text-[11px] uppercase font-bold hover:bg-red-900/50 transition-all flex items-center justify-center gap-2 text-center leading-tight shadow-lg" data-i18n="stopBtn">
+            <span>&#x26D4;</span> Emergency Stop
+        </button>
+    </div>
+
+    <main class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+
+        <!-- LEFT: settings (last on phones) -->
+        <div class="contents lg:flex lg:flex-col lg:gap-5 lg:col-span-3">
+            <div class="reveal glass-card p-5 rounded-2xl order-5 lg:order-none" style="--i:6">
+                <h3 class="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mb-5" data-i18n="clientAdj">Client Adjustments</h3>
+                <div class="space-y-6">
+                    <div>
+                        <div class="flex justify-between items-center text-xs mb-3">
+                            <span class="text-zinc-400" data-i18n="thickness">Injera Thickness</span>
+                            <span class="text-yellow-500 mono text-base" id="thick-val">Medium</span>
+                        </div>
+                        <div class="flex items-center gap-2" id="thickness-group">
+                            <button data-thickness="1" class="jog-btn flex-1 text-center text-sm leading-none" aria-label="Thin - 1 revolution">Thin</button>
+                            <button data-thickness="2" class="jog-btn flex-1 text-center text-sm leading-none" aria-label="Medium - 2 revolutions">Medium</button>
+                            <button data-thickness="3" class="jog-btn flex-1 text-center text-sm leading-none" aria-label="Thick - 3 revolutions">Thick</button>
+                        </div>
+                        <div class="text-[9px] text-zinc-600 mono mt-2 text-right" id="thickness-revs">2 revolutions</div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center text-xs mb-3">
+                            <span class="text-zinc-400" data-i18n="heat">Temperature Threshold</span>
+                            <span class="text-yellow-500 mono text-base" id="global-temp-val">180&#xB0;C</span>
+                        </div>
+                        <input type="range" id="global-temp-slider" min="100" max="260" step="5" value="180">
+                    </div>
+                </div>
+            </div>
+            <details class="reveal glass-card p-4 rounded-2xl border-yellow-500/10 bg-yellow-500/[0.02] group order-6 lg:order-none" style="--i:7">
+                <summary class="flex items-center gap-2 cursor-pointer list-none py-1">
+                    <div class="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></div>
+                    <h3 class="text-[11px] font-bold text-zinc-300 uppercase tracking-widest" data-i18n="engZone">Engineering Zone</h3>
+                    <span class="text-zinc-600 text-xs ml-auto group-open:rotate-180 transition-transform">&#9662;</span>
+                </summary>
+                <div class="space-y-6 mt-5">
+                    <div>
+                        <div class="flex justify-between text-[10px] mb-3">
+                            <span class="text-zinc-400 uppercase" data-i18n="linearSpeed">Y-Axis Speed</span>
+                            <span class="text-yellow-500 mono" id="linear-val">85%</span>
+                        </div>
+                        <input type="range" id="yaxis-speed" min="10" max="100" value="85">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-[10px] mb-3">
+                            <span class="text-zinc-400 uppercase">Rotation RPM</span>
+                            <span class="text-yellow-500 mono" id="rot-speed-val">60%</span>
+                        </div>
+                        <input type="range" id="rot-speed" min="10" max="100" value="60">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-[10px] mb-3">
+                            <span class="text-zinc-400 uppercase">Pump Flow</span>
+                            <span class="text-yellow-500 mono" id="pump-speed-val">50%</span>
+                        </div>
+                        <input type="range" id="pump-speed" min="10" max="100" value="50">
+                    </div>
+                </div>
+            </details>
+            <details class="reveal glass-card p-4 rounded-2xl relative overflow-hidden group order-7 lg:order-none" style="--i:8">
+                <summary class="text-[11px] font-bold text-zinc-500 uppercase tracking-widest cursor-pointer list-none flex justify-between items-center py-1" data-i18n="deviceInfo">
+                    Device Information
+                    <span class="text-zinc-600 text-xs group-open:rotate-180 transition-transform">&#9662;</span>
+                </summary>
+                <div class="space-y-3 mt-4">
+                    <div class="flex justify-between border-b border-white/5 pb-2">
+                        <span class="text-[10px] text-zinc-500 uppercase" data-i18n="serial">Serial No.</span>
+                        <span class="text-[10px] mono text-yellow-500">AD-M4-INJERA-V2</span>
+                    </div>
+                    <div class="flex justify-between border-b border-white/5 pb-2">
+                        <span class="text-[10px] text-zinc-500 uppercase" data-i18n="firmware">Firmware</span>
+                        <span class="text-[10px] mono text-yellow-500">v2.0.0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-[10px] text-zinc-500 uppercase" data-i18n="ip">IP Address</span>
+                        <span class="text-[10px] mono" id="ip-address">192.168.4.1</span>
+                    </div>
+                </div>
+            </details>
+        </div>
+
+        <!-- MIDDLE: plates + heaters -->
+        <div class="contents lg:flex lg:flex-col lg:gap-5 lg:col-span-6">
+            <div class="reveal glass-card p-5 md:p-6 rounded-2xl order-3 lg:order-none" style="--i:4">
+                <div class="flex flex-wrap justify-between items-start mb-6 gap-3">
+                    <div>
+                        <h2 class="text-xl font-bold uppercase tracking-tight" data-i18n="matrixTitle">Baking Zone</h2>
+                        <p class="text-[11px] text-zinc-500 mono" id="matrix-sub" data-i18n="matrixSub">NEMA-34 Positioning | 4 Zones</p>
+                    </div>
+                    <div id="status-badge" data-state="IDLE" class="px-3 py-1 bg-zinc-800/80 rounded text-[9px] mono text-yellow-500 border border-yellow-500/30">
+                        STATUS: IDLE
+                    </div>
+                </div>
+                <!-- Baking zone is built dynamically from the machine's plate count
+                     (data.plate_count / data.plates[]) by buildPlateGrid(). Tap a
+                     plate to select it; press-and-hold opens its detail popup. -->
+                <div id="plate-grid" class="grid grid-cols-2 gap-3 md:gap-5 max-w-md mx-auto relative"></div>
+            </div>
+
+            <!-- Approved change #2: the standalone "Heaters - Hold to edit" section was
+                 removed. Per-plate heating control + enable/disable moves into the
+                 heating-plate detail popup (press-and-hold a plate in the Baking Zone),
+                 implemented in the Phase 4 frontend pass. -->
+        </div>
+
+        <!-- RIGHT: live status + production (first on phones) -->
+        <div class="contents lg:flex lg:flex-col lg:gap-5 lg:col-span-3">
+            <div class="reveal glass-card p-5 rounded-2xl order-1 lg:order-none" style="--i:2">
+                <h3 class="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mb-4 text-left" data-i18n="thermalTitle">Baking Plate Temperature</h3>
+                <div id="thermal-dial" class="thermal-display w-40 h-40 mx-auto mb-5 flex items-center justify-center relative">
+                    <svg viewBox="0 0 120 120" class="absolute inset-0 w-full h-full" style="transform: rotate(-90deg);" aria-hidden="true">
+                        <defs>
+                            <linearGradient id="dialGrad" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" class="dial-stop-a"></stop>
+                                <stop offset="100%" class="dial-stop-b"></stop>
+                            </linearGradient>
+                        </defs>
+                        <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"></circle>
+                        <circle id="dial-arc" cx="60" cy="60" r="52" fill="none" stroke="url(#dialGrad)" stroke-width="5" stroke-linecap="round" stroke-dasharray="326.73" stroke-dashoffset="326.73"></circle>
+                    </svg>
+                    <div class="sensor-dot" id="sensor-dot-1" style="left: calc(50% - 40px); top: calc(50% - 40px);"></div>
+                    <div class="sensor-dot" id="sensor-dot-2" style="left: calc(50% + 36px); top: calc(50% - 40px);"></div>
+                    <div class="sensor-dot" id="sensor-dot-3" style="left: calc(50% - 40px); top: calc(50% + 36px);"></div>
+                    <div class="sensor-dot" id="sensor-dot-4" style="left: calc(50% + 36px); top: calc(50% + 36px);"></div>
+                    <div class="relative flex flex-col items-center">
+                        <span class="text-3xl font-bold mono" id="avg-temp">---</span>
+                        <span class="mono uppercase" id="dial-target">TARGET 180&#xB0;</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div class="stat">
+                        <span class="stat-l" data-i18n="voltage">LINE VOLTAGE</span>
+                        <span class="stat-v text-green-400" id="voltage-reading">--V</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-l" data-i18n="solenoid">SOLENOID VALVE</span>
+                        <span class="stat-v" id="valve-status">CLOSED</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-l">CURRENT DRAW</span>
+                        <span class="stat-v" id="current-reading">--A</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-l" data-i18n="latency">ESP32 LATENCY</span>
+                        <span class="stat-v text-green-400" id="latency">--ms</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="reveal glass-card prod-card p-5 rounded-2xl overflow-hidden order-2 lg:order-none" style="--i:3">
+                <div class="sheen-band"></div>
+                <p class="text-[9px] font-black text-black/70 uppercase tracking-wider mb-1" data-i18n="prodStatus">Production Status</p>
+                <h4 class="text-3xl font-black text-black leading-none" id="ready-msg" data-i18n="readyMsg">Ready to Bake</h4>
+                <div class="grid grid-cols-2 gap-3 mt-5">
+                    <div>
+                        <span class="text-[10px] font-bold text-black/60 block">CYCLES</span>
+                        <span class="text-xl font-black text-black" id="cycle-counter">0/0</span>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-black/60 block">TOTAL BAKES</span>
+                        <span class="text-xl font-black text-black" id="total-bakes">0</span>
+                    </div>
+                </div>
+                <div class="cycle-track"><div id="cycle-bar"></div></div>
+                <button id="big-calibrate-btn" class="btn-start w-full mt-5 py-4 px-5 rounded-xl font-black text-sm">
+                    START SYSTEM
+                </button>
+                <div class="mt-4 flex justify-between items-end pt-2 border-t border-black/20">
+                    <div class="text-[9px] font-bold text-black/60 uppercase" data-i18n="batch">Batch #001-A</div>
+                    <div class="text-[10px] font-black text-black tracking-wider">AD_CORE_v2</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+    <div id="toasts" aria-live="polite"></div>
+
+    <!-- Heater Modal -->
+    <div id="heater-modal" class="modal-overlay fixed inset-0 flex items-center justify-center hidden z-50">
+        <div class="bg-[#0f0f11] p-6 rounded-xl glass-card w-80 border border-yellow-500/30">
+            <h3 class="text-base font-bold mb-4 flex justify-between">
+                <span>Plate Detail</span>
+                <span id="modal-heater-id" class="mono text-yellow-500"></span>
+            </h3>
+            <!-- Live plate readout (from /api/status plates[]) -->
+            <div class="mb-4 grid grid-cols-2 gap-2 text-[11px]">
+                <div class="bg-black/30 rounded-lg p-2">
+                    <div class="text-zinc-500 uppercase text-[9px]">Current</div>
+                    <div id="modal-plate-temp" class="mono text-yellow-500 text-sm">--&#xB0;C</div>
+                </div>
+                <div class="bg-black/30 rounded-lg p-2">
+                    <div class="text-zinc-500 uppercase text-[9px]">Sensor</div>
+                    <div id="modal-plate-health" class="mono text-sm">--</div>
+                </div>
+                <div class="bg-black/30 rounded-lg p-2">
+                    <div class="text-zinc-500 uppercase text-[9px]">Heater</div>
+                    <div id="modal-plate-heater" class="mono text-sm">--</div>
+                </div>
+                <div class="bg-black/30 rounded-lg p-2">
+                    <div class="text-zinc-500 uppercase text-[9px]">Setpoint</div>
+                    <div id="modal-plate-setpoint" class="mono text-sm">--&#xB0;C</div>
+                </div>
+            </div>
+            <div class="mb-4">
+                <div class="text-zinc-500 uppercase text-[9px] mb-1">Temperature history</div>
+                <div id="modal-plate-history" class="text-[10px] text-zinc-600 italic">No measurements yet.</div>
+            </div>
+            <div class="mb-4">
+                <label class="text-xs text-zinc-400 flex items-center gap-2">
+                    <input type="checkbox" id="modal-heater-enabled" style="accent-color:#ffb300"> Enabled
+                </label>
+            </div>
+            <div class="mb-4">
+                <label class="text-xs text-zinc-400 block mb-1">Min Temp (&#xB0;C)</label>
+                <input id="modal-heater-min" type="number" class="pos-input" min="50" max="200" value="150">
+            </div>
+            <div class="mb-4">
+                <label class="text-xs text-zinc-400 block mb-1">Stay/Target Temp (&#xB0;C)</label>
+                <input id="modal-heater-stay" type="number" class="pos-input" min="50" max="260" value="180">
+            </div>
+            <div class="mb-5">
+                <label class="text-xs text-zinc-400 block mb-1">Max Temp (&#xB0;C)</label>
+                <input id="modal-heater-max" type="number" class="pos-input" min="50" max="260" value="190">
+            </div>
+            <div class="flex justify-end gap-2">
+                <button id="modal-cancel" class="py-2 px-4 rounded-lg bg-zinc-800 text-sm hover:bg-zinc-700 transition-colors">Cancel</button>
+                <button id="modal-save" class="py-2 px-4 rounded-lg bg-yellow-500 text-black font-bold text-sm hover:bg-yellow-400 transition-colors">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Panel Modal -->
+    <div id="admin-modal" class="modal-overlay fixed inset-0 flex items-center justify-center hidden z-50">
+        <div class="bg-[#0f0f11] p-0 rounded-xl glass-card w-[640px] max-w-[95vw] border border-yellow-500/30 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center p-5 border-b border-white/10">
+                <h3 class="text-lg font-bold">ADMIN PANEL</h3>
+                <button id="admin-close" class="text-zinc-500 hover:text-white text-xl" aria-label="Close">&times;</button>
+            </div>
+
+            <div id="admin-login" class="p-6 space-y-4">
+                <p class="text-xs text-zinc-400">Enter administrator password:</p>
+                <input type="password" id="admin-password" class="pos-input" placeholder="Password" style="padding:10px 12px">
+                <button id="admin-login-btn" class="w-full py-2 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors">Login</button>
+            </div>
+
+            <div id="admin-content" class="hidden flex-col flex-grow overflow-hidden" style="max-height: calc(90vh - 60px);">
+                <!-- Admin Tabs -->
+                <div class="flex gap-2 px-5 pt-4 pb-2 border-b border-white/5 overflow-x-auto">
+                    <button class="admin-tab-btn active" data-tab="general">General</button>
+                    <button class="admin-tab-btn" data-tab="positions">Positions</button>
+                    <button class="admin-tab-btn" data-tab="terminal">Live Terminal</button>
+                    <button class="admin-tab-btn" data-tab="diagnostics">Diagnostics</button>
+                </div>
+
+                <div class="flex-grow overflow-y-auto p-5 space-y-4">
+                    <!-- GENERAL TAB -->
+                    <div id="tab-general" class="admin-tab-content">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-[10px] text-zinc-400 block mb-1">Y-Axis Max Speed (steps/s)</label>
+                                <input type="number" id="admin-speed1" class="pos-input">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-zinc-400 block mb-1">Rotation Speed (steps/s)</label>
+                                <input type="number" id="admin-speed2" class="pos-input">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-zinc-400 block mb-1">Pump Speed (steps/s)</label>
+                                <input type="number" id="admin-speed3" class="pos-input">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-zinc-400 block mb-1">Pump Duration (ms)</label>
+                                <input type="number" id="admin-pump-dur" class="pos-input">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-zinc-400 block mb-1">Rotation Duration (ms)</label>
+                                <input type="number" id="admin-rot-dur" class="pos-input">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-zinc-400 block mb-1">Valve Delay (ms)</label>
+                                <input type="number" id="admin-valve-dly" class="pos-input">
+                            </div>
+                        </div>
+                        <div class="mt-4 border-t border-white/10 pt-4">
+                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">PID Control</p>
+                            <div class="flex items-center gap-3 mb-3">
+                                <span class="text-xs text-zinc-400">Mode:</span>
+                                <button id="pid-mode-toggle" class="toggle-switch on" aria-label="PID mode"></button>
+                                <span id="pid-mode-label" class="text-xs mono text-yellow-500">FIXED</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div>
+                                    <label class="text-[10px] text-zinc-400">Kp</label>
+                                    <input type="text" id="admin-kp" class="pos-input">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-zinc-400">Ki</label>
+                                    <input type="text" id="admin-ki" class="pos-input">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-zinc-400">Kd</label>
+                                    <input type="text" id="admin-kd" class="pos-input">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4 border-t border-white/10 pt-4">
+                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Temperature Range (Stay Heat)</p>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div>
+                                    <label class="text-[10px] text-zinc-400">Min (&#xB0;C)</label>
+                                    <input type="number" id="admin-min-temp" class="pos-input">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-zinc-400">Stay (&#xB0;C)</label>
+                                    <input type="number" id="admin-stay-temp" class="pos-input">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-zinc-400">Max (&#xB0;C)</label>
+                                    <input type="number" id="admin-max-temp" class="pos-input">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4 border-t border-white/10 pt-4">
+                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Operation</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[10px] text-zinc-400">Bake Wait (s)</label>
+                                    <input type="number" id="admin-bake-wait" class="pos-input">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-zinc-400">Cycles</label>
+                                    <input type="number" id="admin-cycles" class="pos-input">
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 mt-3">
+                                <span class="text-xs text-zinc-400">Mode:</span>
+                                <select id="admin-op-mode" class="pos-input" style="width:auto; min-width:120px;">
+                                    <option value="0">Automatic</option>
+                                    <option value="1">Manual</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button id="admin-save" class="w-full mt-4 py-2 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors">Save Settings</button>
+                    </div>
+
+                    <!-- POSITIONS TAB -->
+                    <div id="tab-positions" class="admin-tab-content hidden">
+                        <div class="mb-4">
+                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Motor A Position Control</p>
+                            <div class="flex items-center gap-3 mb-3">
+                                <span class="text-xs text-zinc-400">Current:</span>
+                                <span id="admin-motor-pos" class="text-lg mono text-yellow-500">0</span>
+                                <span class="text-xs text-zinc-400">steps</span>
+                                <span id="admin-calib-status" class="text-[10px] mono text-red-400 ml-auto">NOT CALIBRATED</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button id="jog-left-btn" class="jog-btn flex-1 text-center">&#x25C0; LEFT</button>
+                                <button id="jog-right-btn" class="jog-btn flex-1 text-center">RIGHT &#x25B6;</button>
+                            </div>
+                            <div class="flex gap-2 mt-2">
+                                <button id="go-home-btn" class="jog-btn flex-1 text-center text-[10px]">HOME</button>
+                                <button id="go-left-prox-btn" class="jog-btn flex-1 text-center text-[10px]">LEFT PROX</button>
+                                <button id="go-right-prox-btn" class="jog-btn flex-1 text-center text-[10px]">RIGHT PROX</button>
+                            </div>
+                        </div>
+                        <div class="border-t border-white/10 pt-4 mb-4">
+                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Go to Position</p>
+                            <div class="flex gap-2">
+                                <input type="number" id="goto-position-input" class="pos-input flex-1" placeholder="Enter position in steps">
+                                <button id="goto-position-btn" class="jog-btn" style="width:auto; padding: 6px 16px;">GO</button>
+                            </div>
+                        </div>
+                        <div class="border-t border-white/10 pt-4 mb-4">
+                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Station Positions (steps)</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div><label class="text-[10px] text-zinc-400">Home</label><input type="number" id="pos-home" class="pos-input"></div>
+                                <div><label class="text-[10px] text-zinc-400">HP1</label><input type="number" id="pos-hp1" class="pos-input"></div>
+                                <div><label class="text-[10px] text-zinc-400">HP2</label><input type="number" id="pos-hp2" class="pos-input"></div>
+                                <div><label class="text-[10px] text-zinc-400">HP3</label><input type="number" id="pos-hp3" class="pos-input"></div>
+                                <div><label class="text-[10px] text-zinc-400">HP4</label><input type="number" id="pos-hp4" class="pos-input"></div>
+                                <div><label class="text-[10px] text-zinc-400">Washing</label><input type="number" id="pos-wash" class="pos-input"></div>
+                            </div>
+                            <button id="save-positions-btn" class="w-full mt-3 py-2 bg-yellow-500 text-black font-bold rounded-lg text-sm hover:bg-yellow-400 transition-colors">Save Positions</button>
+                            <button id="reset-positions-btn" class="w-full mt-2 py-2 bg-zinc-800 text-zinc-400 rounded-lg text-sm hover:bg-zinc-700 transition-colors">Reset to Defaults</button>
+                        </div>
+                        <div class="border-t border-white/10 pt-4">
+                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Test Sequence</p>
+                            <div class="flex gap-2 mb-2">
+                                <input type="number" id="test-seq-delay" class="pos-input flex-1" value="5" min="1" max="60">
+                                <span class="text-xs text-zinc-400 self-center">sec delay</span>
+                            </div>
+                            <button id="test-seq-btn" class="w-full py-2 bg-green-600 text-white font-bold rounded-lg text-sm hover:bg-green-500 transition-colors">Run Test Sequence</button>
+                            <p class="text-[9px] text-zinc-500 mt-1">Home &#x2192; HP1 &#x2192; HP2 &#x2192; HP3 &#x2192; HP4 &#x2192; Home &#x2192; Wash</p>
+                        </div>
+                    </div>
+
+                    <!-- TERMINAL TAB -->
+                    <div id="tab-terminal" class="admin-tab-content hidden">
+                        <div class="glass-card p-4 rounded-2xl h-44 flex flex-col mb-4" style="background:rgba(255,255,255,0.02)">
+                            <div class="flex gap-2 mb-3">
+                                <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                                <span class="text-[10px] mono text-zinc-500 uppercase tracking-widest" data-i18n="telemetry">Live Telemetry Stream</span>
+                                <span class="text-[9px] mono text-zinc-600 ml-auto" id="last-update-time">--:--:--</span>
+                            </div>
+                            <div id="log-box" class="flex-grow overflow-y-auto console-log pr-2 space-y-1">
+                                <p>> ADYSINNIA_OS_V2.0_LOADED</p>
+                                <p>> SYSTEM_READY: CONNECTING TO ESP32...</p>
+                                <p>> PRESS BIG YELLOW BUTTON TO START</p>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center mb-2">
+                            <p class="text-[10px] text-zinc-400 uppercase tracking-wider">Live Terminal Output</p>
+                            <button id="terminal-clear" class="text-[10px] text-zinc-500 hover:text-yellow-500">Clear</button>
+                        </div>
+                        <div id="admin-terminal" class="terminal-box"></div>
+                        <div class="mt-3 grid grid-cols-4 gap-2 text-[10px] mono">
+                            <div class="bg-black/40 p-2 rounded border border-white/5">
+                                <span class="text-zinc-500 block">State</span>
+                                <span id="term-state" class="text-yellow-500">IDLE</span>
+                            </div>
+                            <div class="bg-black/40 p-2 rounded border border-white/5">
+                                <span class="text-zinc-500 block">Temp</span>
+                                <span id="term-temp" class="text-green-400">--</span>
+                            </div>
+                            <div class="bg-black/40 p-2 rounded border border-white/5">
+                                <span class="text-zinc-500 block">Position</span>
+                                <span id="term-pos" class="text-blue-400">0</span>
+                            </div>
+                            <div class="bg-black/40 p-2 rounded border border-white/5">
+                                <span class="text-zinc-500 block">Cycle</span>
+                                <span id="term-cycle" class="text-purple-400">0/0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DIAGNOSTICS TAB -->
+                    <div id="tab-diagnostics" class="admin-tab-content hidden">
+                        <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Sensor Diagnostics</p>
+                        <div id="diag-content" class="space-y-2 text-xs mono">
+                            <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
+                                <span class="text-zinc-400">Left Proximity</span>
+                                <span id="diag-prox-left" class="text-green-400">OK</span>
+                            </div>
+                            <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
+                                <span class="text-zinc-400">Right Proximity</span>
+                                <span id="diag-prox-right" class="text-green-400">OK</span>
+                            </div>
+                            <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
+                                <span class="text-zinc-400">E-Stop</span>
+                                <span id="diag-estop" class="text-green-400">RELEASED</span>
+                            </div>
+                            <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
+                                <span class="text-zinc-400">WiFi Clients</span>
+                                <span id="diag-wifi" class="text-blue-400">0</span>
+                            </div>
+                            <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
+                                <span class="text-zinc-400">Free Heap</span>
+                                <span id="diag-heap" class="text-blue-400">--</span>
+                            </div>
+                            <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
+                                <span class="text-zinc-400">CPU Freq</span>
+                                <span id="diag-cpu" class="text-blue-400">240 MHz</span>
+                            </div>
+                        </div>
+                        <button id="refresh-diag-btn" class="w-full mt-3 py-2 bg-zinc-800 text-white rounded-lg text-sm hover:bg-zinc-700 transition-colors">Refresh Diagnostics</button>
+                    </div>
+                </div>
+                <div class="p-5 border-t border-white/10">
+                    <button id="admin-logout" class="w-full py-2 bg-zinc-800 text-white rounded-lg text-sm hover:bg-zinc-700 transition-colors">Logout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        // ---- Supabase client (Phase 5). Null if the SDK/config didn't load,
+        //      in which case the app falls back to local-network mode only. ----
+        const sb = (window.supabase && window.AD_CONFIG && window.AD_CONFIG.SUPABASE_URL)
+            ? window.supabase.createClient(window.AD_CONFIG.SUPABASE_URL, window.AD_CONFIG.SUPABASE_ANON_KEY)
+            : null;
+        let cloudMode = false;             // true once signed in via Supabase
+        let currentMachineId = null;       // the machine this dashboard is bound to (cloud mode)
+        let currentUserId = null;          // auth.uid() in cloud mode (for command rows)
+
+        let currentLang = 'en';
+        let pollingInterval = null;
+        let currentHeatersData = [];
+        let currentPlates = [];        // canonical per-plate data from /api/status plates[]
+        let plateGridBuilt = 0;        // how many plate tiles are currently rendered
+        let isAdminLoggedIn = false;
+        let currentHeaterIndex = 0;
+        const ADMIN_PASSWORD = 'Yakob123';
+        let jogInterval = null;
+        const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        const i18n = {
+            en: {
+                systemId: "System: AD-PRO-INJERA-V2", tagline: "ADYSINNIA AUTOMATION",
+                power: "3-Phase: -- Sensing", deviceInfo: "Device Information", serial: "Serial No.",
+                firmware: "Firmware", ip: "IP Address", clientAdj: "Client Adjustments",
+                thickness: "Injera Thickness", heat: "Temperature Threshold", engZone: "Engineering Zone",
+                linearSpeed: "Y-Axis Speed", matrixTitle: "Baking Zone", matrixSub: "NEMA-34 Positioning | 4 Zones",
+                homeBtn: "Home", resetBtn: "\u25B6 Start Baking", stopBtn: "\u26D4 Emergency Stop",
+                telemetry: "Live Telemetry Stream", thermalTitle: "Baking Plate Temperature", voltage: "LINE VOLTAGE",
+                solenoid: "SOLENOID VALVE", latency: "ESP32 LATENCY", prodStatus: "Production Status",
+                readyMsg: "Ready to Bake", batch: "Batch #001-A",
+                heatersTitle: "Heaters", holdHint: "Hold to edit"
+            },
+            am: {
+                systemId: "ሲስተም: AD-PRO-እንጀራ-V2", tagline: "አዲስኒያ አውቶሜሽን",
+                power: "3-ፌዝ: -- በመለካት ላይ", deviceInfo: "የመሳሪያ መረጃ", serial: "የመለያ ቁጥር",
+                firmware: "ፍርምዌር", ip: "አይፒ አድራሻ", clientAdj: "የደንበኛ ማስተካከያ",
+                thickness: "የእንጀራ ውፍረት", heat: "አቀዝባላይ ሙቀት", engZone: "የምህንድስና ዞን",
+                linearSpeed: "Y-ደንድ ፍጥነት", matrixTitle: "ቤኪንግ ዞን", matrixSub: "NEMA-34 አቀማመጥ | 4 ዞኖች",
+                homeBtn: "መነሻ", resetBtn: "\u25B6 መጀመር ይጀምር", stopBtn: "\u26D4 አደጋ ማቆሚያ",
+                telemetry: "የቀዝባ ሰንሰለት መረጃ", thermalTitle: "የቤኪንግ ፕሌት ሙቀት", voltage: "የኤሌክትሪክ መለኪያዎች",
+                solenoid: "ቫልቭ", latency: "ESP32 ፍጥነት", prodStatus: "የሥራ ግንባታ",
+                readyMsg: "ለመጀመር ዝግጁ", batch: "ባትሪ #001-A",
+                heatersTitle: "ማሞቂያዎች", holdHint: "ለማስተካከል ተጭነው ይያዙ"
+            }
+        };
+
+        function setLang(lang) {
+            currentLang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang][key]) el.innerText = i18n[lang][key];
+            });
+            addLog(lang === 'am' ? "ቋንቋ ወደ አማርኛ ተቀይሯል" : "Language set to English");
+        }
+
+        function addLog(msg) {
+            const box = document.getElementById('log-box');
+            const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
+            const p = document.createElement('p');
+            p.innerHTML = `> [${time}] ${msg}`;
+            box.appendChild(p);
+            while (box.children.length > 100) box.removeChild(box.firstChild);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        /* ---------- UI helpers (visual only) ---------- */
+        function toast(msg, type = 'info', key) {
+            const wrap = document.getElementById('toasts');
+            if (!wrap) return;
+            let el = key ? wrap.querySelector(`[data-key="${key}"]`) : null;
+            if (!el) {
+                el = document.createElement('div');
+                el.innerHTML = '<i></i><span></span>';
+                if (key) el.dataset.key = key;
+                wrap.appendChild(el);
+            }
+            el.className = 'toast ' + type;
+            el.querySelector('span').textContent = msg;
+            clearTimeout(el._t);
+            el._t = setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 2600);
+            while (wrap.children.length > 3) wrap.removeChild(wrap.firstChild);
+        }
+
+        function tween(el, to, decimals, suffix) {
+            if (!el) return;
+            const fmt = v => v.toFixed(decimals) + suffix;
+            const from = parseFloat(el.dataset.v);
+            el.dataset.v = to;
+            cancelAnimationFrame(el._raf);
+            if (isNaN(from) || REDUCED || from === to) { el.innerHTML = fmt(to); return; }
+            const t0 = performance.now(), dur = 600;
+            const step = now => {
+                const p = Math.min(1, (now - t0) / dur);
+                const e = 1 - Math.pow(1 - p, 3);
+                el.innerHTML = fmt(from + (to - from) * e);
+                if (p < 1) el._raf = requestAnimationFrame(step);
+            };
+            el._raf = requestAnimationFrame(step);
+        }
+
+        function paintRange(el) {
+            const p = ((el.value - el.min) / (el.max - el.min)) * 100;
+            el.style.setProperty('--p', p + '%');
+        }
+
+        function bump(el) {
+            if (!el) return;
+            el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+        }
+
+        let connected = null;
+        function setConn(ok) {
+            const dot = document.getElementById('conn-dot');
+            if (dot) { dot.style.background = ok ? '#00e676' : '#ff3b30'; dot.classList.toggle('offline', !ok); }
+            // Persistent offline banner — only once the dashboard is visible
+            // (don't stack it on the boot/login overlays).
+            const banner = document.getElementById('conn-banner');
+            const boot = document.getElementById('boot-overlay');
+            const dashVisible = boot && boot.classList.contains('hidden');
+            if (banner) banner.classList.toggle('hidden', ok || !dashVisible);
+            if (connected !== ok) {
+                if (connected !== null || !ok) {
+                    toast(ok ? 'Reconnected to machine' : 'Connection to machine lost', ok ? 'ok' : 'err', 'conn');
+                    addLog(ok ? 'Machine link restored' : 'Machine link lost');
+                }
+                connected = ok;
+            }
+        }
+
+        // ---- Safety states driven by the machine's reported mode ----
+        // ESTOP(6) / RECOVERY_REQUIRED(17) / FAULT(18) raise a blocking overlay
+        // with honest messaging (the web E-Stop is a REQUEST; the physical circuit
+        // is the real stop; recovery needs a physical action, never a web reset).
+        function updateSafetyState(mode) {
+            const ov = document.getElementById('safety-overlay');
+            if (!ov) return;
+            const title = document.getElementById('safety-title');
+            const msg = document.getElementById('safety-msg');
+            const note = document.getElementById('safety-note');
+            const icon = document.getElementById('safety-icon');
+            const card = ov.querySelector('.safety-card');
+            let show = true;
+            if (mode === 6) {
+                ov.className = 'overlay-full safety-overlay-estop'; card.classList.remove('fault');
+                icon.innerText = '⛔';
+                title.innerText = 'Emergency Stop';
+                msg.innerText = 'The machine is in a latched emergency stop. Motion and heating are cut by the physical safety circuit.';
+                note.innerText = 'Clear the physical E-Stop, then press the machine’s Continue to recover';
+            } else if (mode === 17) {
+                ov.className = 'overlay-full safety-overlay-estop'; card.classList.remove('fault');
+                icon.innerText = '⚠';
+                title.innerText = 'Recovery Required';
+                msg.innerText = 'The emergency stop was released or a fault cleared. The machine will not restart on its own.';
+                note.innerText = 'Inspect the machine, then acknowledge at the panel to resume';
+            } else if (mode === 18) {
+                ov.className = 'overlay-full safety-overlay-fault'; card.classList.add('fault');
+                icon.innerText = '⚠';
+                title.innerText = 'Machine Fault';
+                msg.innerText = 'A fault was detected and outputs were driven to a safe state. Check the machine and fault details before continuing.';
+                note.innerText = 'Resolve the fault at the machine, then recover';
+            } else {
+                show = false;
+            }
+            ov.classList.toggle('hidden', !show);
+        }
+
+        const ARC = 326.73;
+        function getTarget() {
+            const en = currentHeatersData.filter(h => h && h.enabled !== false && h.setpoint > 0);
+            if (en.length) return en.reduce((a, h) => a + h.setpoint, 0) / en.length;
+            return parseInt(document.getElementById('global-temp-slider').value) || 180;
+        }
+        function updateDial(avg, target) {
+            const dial = document.getElementById('thermal-dial');
+            const arc = document.getElementById('dial-arc');
+            const tgt = document.getElementById('dial-target');
+            if (avg === null) {
+                arc.style.strokeDashoffset = ARC;
+                dial.style.setProperty('--dial', 0);
+                dial.classList.remove('at-temp');
+                tgt.innerHTML = 'TARGET ' + Math.round(target) + '\u00B0';
+                return;
+            }
+            const frac = Math.max(0, Math.min(1, (avg - 25) / Math.max(1, target - 25)));
+            arc.style.strokeDashoffset = ARC * (1 - frac);
+            dial.style.setProperty('--dial', frac.toFixed(2));
+            dial.classList.toggle('at-temp', frac >= 0.97);
+            tgt.innerHTML = (frac >= 0.97 ? 'AT TARGET ' : 'TARGET ') + Math.round(target) + '\u00B0';
+        }
+
+        const CMD_LABELS = {
+            '/api/calibrate': ['Homing started', 'ok'],
+            '/api/start': ['Baking started', 'ok'],
+            '/api/stop': ['Emergency stop sent', 'warn'],
+            '/api/positions/save': ['Positions saved', 'ok'],
+            '/api/positions/reset': ['Positions reset to defaults', 'warn'],
+            '/api/test/sequence': ['Test sequence started', 'ok'],
+            '/api/move/to': ['Moving to position', 'ok']
+        };
+
+        async function sendCommand(endpoint, method = 'POST', body = null) {
+            const path = endpoint.split('?')[0];
+            // Cloud mode: queue the command in Supabase; the device executes it.
+            if (cloudMode && sb && currentMachineId) return queueCloudCommand(endpoint, body);
+            try {
+                const options = { method, headers: { ...authHeader() } };   // token in cloud mode; {} on LAN
+                if (body) { options.headers['Content-Type'] = 'application/json'; options.body = JSON.stringify(body); }
+                const response = await fetch(API_BASE + endpoint, options);
+                if (response.ok) {
+                    addLog(`CMD: ${endpoint} -> OK`);
+                    const l = CMD_LABELS[path];
+                    if (l) toast(l[0], l[1], 'cmd');
+                    return true;
+                } else {
+                    addLog(`CMD: ${endpoint} -> ERR ${response.status}`);
+                    toast(`Command rejected (${response.status})`, 'err', 'fail');
+                    return false;
+                }
+            } catch (e) {
+                addLog(`CMD: ${endpoint} -> FAIL (${e.message})`);
+                toast('Command failed. Check the machine connection.', 'err', 'fail');
+                return false;
+            }
+        }
+
+        // Cloud mode: turn an "/api/..." call into a row in the `commands` mailbox.
+        // The device polls this table, executes, and updates status. RLS requires
+        // the row to be for a machine the user owns, with issued_by = their uid.
+        async function queueCloudCommand(endpoint, body) {
+            const [path, qs] = endpoint.split('?');
+            const args = Object.assign({}, body || {});
+            if (qs) qs.split('&').forEach(kv => { const [k, v] = kv.split('='); if (k) args[k] = decodeURIComponent(v || ''); });
+            const type = path.replace(/^\/api\//, '').replace(/\//g, '_');   // '/api/heater/toggle' -> 'heater_toggle'
+            const cmd_id = 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+            try {
+                const { error } = await sb.from('commands').insert({
+                    cmd_id, machine_id: currentMachineId, issued_by: currentUserId,
+                    type, args, status: 'accepted',
+                    expires_at: new Date(Date.now() + 120000).toISOString()   // stale commands expire
+                });
+                if (error) { addLog(`CMD cloud: ${type} -> ${error.message}`); toast('Command rejected: ' + error.message, 'err', 'fail'); return false; }
+                addLog(`CMD cloud: ${type} queued`);
+                const l = CMD_LABELS[path]; if (l) toast(l[0], l[1], 'cmd');
+                return true;
+            } catch (e) {
+                addLog(`CMD cloud: ${type} -> FAIL (${e.message})`);
+                toast('Command failed to queue.', 'err', 'fail');
+                return false;
+            }
+        }
+
+        // Build the baking-zone grid from the machine's actual plate count.
+        // Tap = select; press-and-hold (550 ms) = open that plate's detail popup.
+        function buildPlateGrid(count) {
+            const grid = document.getElementById('plate-grid');
+            if (!grid || plateGridBuilt === count) return;
+            grid.className = 'grid gap-3 md:gap-5 max-w-md mx-auto relative ' + (count > 4 ? 'grid-cols-3' : 'grid-cols-2');
+            grid.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+                const tile = document.createElement('div');
+                tile.id = `grid-${i + 1}`;
+                tile.className = 'plate-btn' + (i === 0 ? ' active' : '');
+                tile.setAttribute('role', 'button');
+                tile.setAttribute('tabindex', '0');
+                tile.setAttribute('aria-label', 'Baking plate ' + (i + 1));
+                tile.innerHTML =
+                    `<span class="plate-id text-2xl font-bold opacity-40">P${i + 1}</span>` +
+                    `<span class="absolute top-3 right-3 text-[8px] mono text-zinc-600" id="heater${i + 1}-temp-indicator" style="z-index:1">--°</span>` +
+                    `<span class="plate-off-badge absolute bottom-3 left-3 text-[7px] mono text-red-400 uppercase tracking-widest hidden">off</span>`;
+                tile.addEventListener('click', () => moveActuator(i + 1));
+                // press-and-hold -> plate detail popup (approved change #5)
+                let pressTimer = null;
+                const startPress = () => { clearTimeout(pressTimer); tile.classList.add('pressing');
+                    pressTimer = setTimeout(() => { pressTimer = null; tile.classList.remove('pressing'); openHeaterModal(i); }, 550); };
+                const endPress = () => { clearTimeout(pressTimer); tile.classList.remove('pressing'); };
+                tile.addEventListener('mousedown', startPress);
+                tile.addEventListener('touchstart', startPress, { passive: true });
+                ['mouseup', 'mouseleave', 'touchend', 'touchcancel', 'touchmove'].forEach(ev => tile.addEventListener(ev, endPress));
+                tile.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); moveActuator(i + 1); } });
+                tile.addEventListener('contextmenu', e => e.preventDefault());
+                grid.appendChild(tile);
+            }
+            plateGridBuilt = count;
+            const sub = document.getElementById('matrix-sub');
+            if (sub) sub.innerText = `NEMA-34 Positioning | ${count} Zone${count === 1 ? '' : 's'}`;
+        }
+
+        function moveActuator(id) {
+            document.querySelectorAll('.plate-btn').forEach(btn => btn.classList.remove('active'));
+            const el = document.getElementById(`grid-${id}`);
+            if (el) el.classList.add('active');
+            addLog(`ACTUATOR: selected Plate P${id}`);
+        }
+
+        async function fetchSystemStatus() {
+            const startTime = performance.now();
+            try {
+                let data;
+                if (cloudMode && sb && currentMachineId) {
+                    // Cloud: read the latest status the device posted (machine_status.raw
+                    // holds the full status object, same shape as /api/status).
+                    const { data: row, error } = await sb.from('machine_status')
+                        .select('raw').eq('machine_id', currentMachineId).maybeSingle();
+                    document.getElementById('latency').innerText = 'cloud';
+                    document.getElementById('last-update-time').innerText = new Date().toLocaleTimeString();
+                    if (error || !row || !row.raw) { setConn(false); return false; }  // machine hasn't reported yet
+                    data = row.raw;
+                    setConn(true);
+                } else {
+                    const response = await fetch(API_BASE + '/api/status', { headers: authHeader() });
+                    const latency = Math.round(performance.now() - startTime);
+                    document.getElementById('latency').innerText = latency + 'ms';
+                    document.getElementById('last-update-time').innerText = new Date().toLocaleTimeString();
+                    if (!response.ok) throw new Error('API error');
+                    data = await response.json();
+                    setConn(true);
+                }
+
+                // Canonical per-plate data; keep heaters[] mirror for getTarget().
+                currentPlates = data.plates || [];
+                if (data.heaters) currentHeatersData = data.heaters;
+                const plateCount = data.plate_count || currentPlates.length ||
+                                   (data.temperatures ? data.temperatures.length : 4) || 4;
+                buildPlateGrid(plateCount);          // (re)render only when the count changes
+                const target = getTarget();
+
+                // Per-plate temperature + heat glow, dynamic over the real plate count.
+                let tSum = 0, tValidN = 0;
+                for (let i = 0; i < plateCount; i++) {
+                    const p = currentPlates[i];
+                    let t = null, valid = false, enabled = true;
+                    if (p) {
+                        valid = !!p.temp_valid && p.temp_c !== null && p.temp_c > -40;
+                        t = valid ? p.temp_c : null;
+                        enabled = p.enabled !== false;
+                    } else if (data.temperatures && data.temperatures[i] !== undefined) {
+                        t = data.temperatures[i]; valid = t > -40;
+                    }
+                    const tempEl = document.getElementById(`heater${i+1}-temp-indicator`);
+                    if (tempEl) tempEl.innerText = valid ? Math.round(t) + '\u00B0' : '--\u00B0';
+                    const heat = valid ? Math.max(0, Math.min(1, (t - 25) / Math.max(1, target - 25))) : 0;
+                    const plate = document.getElementById(`grid-${i+1}`);
+                    if (plate) {
+                        plate.style.setProperty('--heat', heat.toFixed(2));
+                        plate.classList.toggle('plate-disabled', !enabled);
+                        const off = plate.querySelector('.plate-off-badge');
+                        if (off) off.classList.toggle('hidden', enabled);
+                    }
+                    if (tempEl) tempEl.style.color = (valid && heat > 0.6) ? '#ffb300' : '';
+                    if (valid) { tSum += t; tValidN++; }
+                }
+                const avgEl = document.getElementById('avg-temp');
+                if (tValidN > 0) {
+                    const avg = tSum / tValidN;
+                    tween(avgEl, Math.round(avg), 0, '\u00B0');
+                    updateDial(avg, target);
+                } else {
+                    delete avgEl.dataset.v;
+                    avgEl.innerHTML = '---';
+                    updateDial(null, target);
+                }
+                const powerEl = document.getElementById('power-status');
+                const bar2 = document.getElementById('voltage-bar-2');
+                const bar3 = document.getElementById('voltage-bar-3');
+                if (data.voltage && data.voltage > 0) {
+                    tween(document.getElementById('voltage-reading'), data.voltage, 1, 'V');
+                    powerEl.innerText = `3-PHASE: ${data.voltage.toFixed(0)}V STABLE`;
+                    powerEl.style.color = '#4ade80';
+                    bar2.classList.add('lit'); bar3.classList.add('lit');
+                } else {
+                    powerEl.innerText = '3-Phase: -- Sensing';
+                    powerEl.style.color = '';
+                    bar2.classList.remove('lit'); bar3.classList.remove('lit');
+                }
+                if (data.current !== undefined) tween(document.getElementById('current-reading'), data.current, 1, 'A');
+
+                const valveEl = document.getElementById('valve-status');
+                if (valveEl) { valveEl.innerText = data.valve ? 'OPEN' : 'CLOSED'; valveEl.style.color = data.valve ? '#ffb300' : '#888'; }
+
+                const badge = document.getElementById('status-badge');
+                const stateMap = { 0:'IDLE',1:'CALIBRATING',2:'CALIB_DONE',3:'PRE_HEATING',4:'HEATING',5:'RUNNING',6:'ESTOP',7:'TEST',8:'SETTINGS',9:'INFO',10:'WASHING',11:'POST_POUR',12:'BETWEEN_CYCLES',13:'CYCLE_DONE',15:'PAUSED',16:'RETURNING_HOME',17:'RECOVERY',18:'FAULT' };
+                const stateStr = stateMap[data.mode] || 'UNKNOWN';
+                badge.innerHTML = `STATUS: ${stateStr}`;
+                badge.dataset.state = stateStr;
+                document.body.dataset.state = stateStr.toLowerCase();
+
+                // Blocking safety overlay for ESTOP / RECOVERY / FAULT.
+                updateSafetyState(data.mode);
+
+                const readyMsg = document.getElementById('ready-msg');
+                if (data.mode === 5) readyMsg.innerText = 'BAKING...';
+                else if (data.mode === 1) readyMsg.innerText = 'CALIBRATING';
+                else if (data.mode === 6) readyMsg.innerText = 'ESTOP!';
+                else if (data.mode === 3 || data.mode === 4) readyMsg.innerText = 'HEATING...';
+                else readyMsg.innerText = currentLang === 'am' ? 'ለመጀመር ዝግጁ' : 'Ready to Bake';
+
+                if (data.cycles_completed !== undefined && data.cycles_target !== undefined) {
+                    document.getElementById('cycle-counter').innerText = `${data.cycles_completed}/${data.cycles_target}`;
+                    const pct = data.cycles_target > 0 ? Math.min(100, (data.cycles_completed / data.cycles_target) * 100) : 0;
+                    document.getElementById('cycle-bar').style.width = pct + '%';
+                }
+                if (data.total_bakes !== undefined) tween(document.getElementById('total-bakes'), Number(data.total_bakes) || 0, 0, '');
+
+                if (isAdminLoggedIn) updateAdminTerminal(data);
+
+                return true;
+            } catch (error) {
+                document.getElementById('latency').innerText = 'ERR';
+                setConn(false);
+                return false;
+            }
+        }
+
+        let terminalLines = [];
+        function updateAdminTerminal(data) {
+            document.getElementById('term-state').innerText = data.state || 'IDLE';
+            document.getElementById('term-temp').innerText = (data.temp_average > -40) ? data.temp_average.toFixed(1) + '\u00B0C' : '--';
+            document.getElementById('term-pos').innerText = data.motor_a_pos || '0';
+            document.getElementById('term-cycle').innerText = `${data.cycles_completed || 0}/${data.cycles_target || 0}`;
+            document.getElementById('admin-motor-pos').innerText = data.motor_a_pos || '0';
+            document.getElementById('admin-calib-status').innerText = data.calibrated ? 'CALIBRATED' : 'NOT CALIBRATED';
+            document.getElementById('admin-calib-status').style.color = data.calibrated ? '#00e676' : '#ff3b30';
+        }
+
+        function addTerminalLine(text, type = 'info') {
+            const box = document.getElementById('admin-terminal');
+            const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
+            const div = document.createElement('div');
+            div.className = 't-' + type;
+            div.innerHTML = `<span class="t-time">[${time}]</span> ${text}`;
+            box.appendChild(div);
+            while (box.children.length > 200) box.removeChild(box.firstChild);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        /* Heater tiles are built once and updated in place, so bars animate smoothly
+           and a long-press is never interrupted by the 1.5s refresh. */
+        let heaterTilesBuilt = false;
+        function buildHeaterTiles() {
+            const container = document.getElementById('heater-tiles');
+            if (!container) return;
+            container.innerHTML = '';
+            for (let i = 0; i < 4; i++) {
+                const tile = document.createElement('div');
+                tile.className = 'heater-tile';
+                tile.setAttribute('data-heater-idx', i);
+                tile.title = 'Hold to edit';
+                tile.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-bold">H${i+1}</span>
+                        <span class="ht-temp text-[10px] mono"></span>
+                    </div>
+                    <div class="w-full bg-black/30 rounded-full h-1 overflow-hidden"><div class="ht-fill bg-yellow-500 rounded-full h-1" style="width:0%"></div></div>
+                    <div class="ht-status text-[8px] mt-1"></div>`;
+                let pressTimer = null;
+                const startPress = () => {
+                    clearTimeout(pressTimer);
+                    tile.classList.add('pressing');
+                    pressTimer = setTimeout(() => { pressTimer = null; tile.classList.remove('pressing'); openHeaterModal(i); }, 600);
+                };
+                const endPress = () => { clearTimeout(pressTimer); pressTimer = null; tile.classList.remove('pressing'); };
+                tile.addEventListener('mousedown', startPress);
+                tile.addEventListener('touchstart', startPress, { passive: true });
+                ['mouseup', 'mouseleave', 'touchend', 'touchcancel', 'touchmove'].forEach(ev => tile.addEventListener(ev, endPress));
+                tile.addEventListener('contextmenu', e => e.preventDefault());
+                container.appendChild(tile);
+            }
+            heaterTilesBuilt = true;
+        }
+
+        function updateHeaterTiles(heaters) {
+            if (!heaterTilesBuilt) buildHeaterTiles();
+            const tiles = document.querySelectorAll('#heater-tiles .heater-tile');
+            for (let i = 0; i < 4; i++) {
+                const tile = tiles[i];
+                if (!tile) continue;
+                const heater = heaters[i] || { enabled: true, setpoint: 180, current: 25 };
+                const cur = heater.current || 25;
+                const sp = heater.setpoint || 180;
+                tile.classList.toggle('active', !!heater.enabled);
+                tile.classList.toggle('heating', !!heater.enabled && cur < sp - 3);
+                tile.querySelector('.ht-temp').textContent = `${Math.round(cur)}\u00B0/${Math.round(sp)}\u00B0`;
+                tile.querySelector('.ht-fill').style.width = Math.min(100, (cur / sp) * 100) + '%';
+                tile.querySelector('.ht-status').textContent = heater.enabled ? 'ENABLED' : 'DISABLED';
+            }
+        }
+
+        function openHeaterModal(index) {
+            currentHeaterIndex = index;
+            document.getElementById('modal-heater-id').innerText = `P${index + 1}`;
+            const p = currentPlates[index] || currentHeatersData[index] || null;
+            const tempEl = document.getElementById('modal-plate-temp');
+            const healthEl = document.getElementById('modal-plate-health');
+            const heaterEl = document.getElementById('modal-plate-heater');
+            const spEl = document.getElementById('modal-plate-setpoint');
+            if (p) {
+                const sp = p.setpoint_c || p.setpoint || 180;
+                const tc = (p.temp_c !== undefined) ? p.temp_c : (p.current !== undefined ? p.current : null);
+                const valid = (p.temp_valid !== undefined ? p.temp_valid : (tc !== null)) && tc !== null && tc > -40;
+                tempEl.innerText = valid ? Math.round(tc) + '°C' : '—';
+                const health = p.sensor_health || (valid ? 'ok' : 'absent');
+                healthEl.innerText = health.toUpperCase();
+                healthEl.style.color = health === 'ok' ? '#4ade80' : (health === 'absent' ? '#71717a' : '#ff9500');
+                heaterEl.innerText = p.heater_on ? 'ON' : 'OFF';
+                heaterEl.style.color = p.heater_on ? '#ffb300' : '#71717a';
+                spEl.innerText = sp + '°C';
+                document.getElementById('modal-heater-enabled').checked = p.enabled !== false;
+                document.getElementById('modal-heater-min').value = 150;
+                document.getElementById('modal-heater-stay').value = sp;
+                document.getElementById('modal-heater-max').value = 190;
+            } else {
+                tempEl.innerText = '—'; healthEl.innerText = 'ABSENT'; heaterEl.innerText = '—'; spEl.innerText = '—';
+            }
+            // History shows ONLY real measurements. None are stored yet (the temperature
+            // sensing subsystem is not built), so show an honest empty state — never fake data.
+            document.getElementById('modal-plate-history').innerText = 'No measurements yet.';
+            document.getElementById('heater-modal').classList.remove('hidden');
+        }
+
+        async function startFullSystem() {
+            const btn = document.getElementById('big-calibrate-btn');
+            const originalText = btn.innerText;
+            btn.innerText = 'STARTING...'; btn.disabled = true;
+            addLog('Start System: initialize + auto-run...');
+            // Big yellow button = Start System (contract): the firmware calibrates
+            // if needed, homes, preheats, then auto-starts the job. Not /api/calibrate.
+            const started = await sendCommand('/api/system/start', 'POST');
+            if (!started) { btn.innerText = 'START FAILED'; setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 3000); return; }
+            let checkCount = 0;
+            const checkInterval = setInterval(async () => {
+                try {
+                    const resp = await fetch(API_BASE + '/api/status');
+                    const data = await resp.json();
+                    if (data.mode === 2 || data.mode === 3 || data.mode === 4 || data.mode === 5) {
+                        clearInterval(checkInterval); btn.innerText = 'SYSTEM ACTIVE';
+                        setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 5000);
+                        addLog('System calibrated and started!');
+                        toast('System calibrated and started', 'ok', 'cmd');
+                    }
+                    checkCount++; if (checkCount > 60) { clearInterval(checkInterval); btn.innerText = originalText; btn.disabled = false; }
+                } catch(e) {}
+            }, 1000);
+        }
+
+        function setupAdminPanel() {
+            const settingsBtn = document.getElementById('settings-btn');
+            const adminModal = document.getElementById('admin-modal');
+            const adminLogin = document.getElementById('admin-login');
+            const adminContent = document.getElementById('admin-content');
+            const adminPassword = document.getElementById('admin-password');
+            const loginBtn = document.getElementById('admin-login-btn');
+            const adminClose = document.getElementById('admin-close');
+            const adminLogout = document.getElementById('admin-logout');
+            const adminSave = document.getElementById('admin-save');
+
+            settingsBtn.addEventListener('click', () => {
+                adminModal.classList.remove('hidden');
+                if (isAdminLoggedIn) { adminLogin.classList.add('hidden'); adminContent.classList.remove('hidden'); adminContent.style.display = 'flex'; loadAdminSettings(); }
+                else { adminLogin.classList.remove('hidden'); adminContent.classList.add('hidden'); adminPassword.value = ''; }
+            });
+            adminClose.addEventListener('click', () => { adminModal.classList.add('hidden'); });
+            const tryLogin = () => {
+                if (adminPassword.value === ADMIN_PASSWORD) {
+                    isAdminLoggedIn = true; adminLogin.classList.add('hidden');
+                    adminContent.classList.remove('hidden'); adminContent.style.display = 'flex';
+                    loadAdminSettings(); addLog('Admin unlocked');
+                } else { alert('Wrong password!'); }
+            };
+            loginBtn.addEventListener('click', tryLogin);
+            adminPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
+            adminLogout.addEventListener('click', () => {
+                isAdminLoggedIn = false; adminLogin.classList.remove('hidden');
+                adminContent.classList.add('hidden'); adminContent.style.display = 'none';
+                addLog('Admin logged out');
+            });
+            adminSave.addEventListener('click', async () => {
+                const settings = {
+                    stepper1_speed: parseInt(document.getElementById('admin-speed1').value) || 2500,
+                    stepper2_speed: parseInt(document.getElementById('admin-speed2').value) || 1500,
+                    stepper3_speed: parseInt(document.getElementById('admin-speed3').value) || 1200,
+                    pump_duration: parseInt(document.getElementById('admin-pump-dur').value) || 3000,
+                    rotation_duration: parseInt(document.getElementById('admin-rot-dur').value) || 5000,
+                    valve_delay: parseInt(document.getElementById('admin-valve-dly').value) || 500,
+                    pid_kp: parseFloat(document.getElementById('admin-kp').value) || 2.0,
+                    pid_ki: parseFloat(document.getElementById('admin-ki').value) || 0.5,
+                    pid_kd: parseFloat(document.getElementById('admin-kd').value) || 1.0,
+                    bake_wait: parseInt(document.getElementById('admin-bake-wait').value) || 45,
+                    cycles: parseInt(document.getElementById('admin-cycles').value) || 2,
+                    pid_mode: document.getElementById('pid-mode-toggle').classList.contains('on') ? 1 : 0,
+                    op_mode: parseInt(document.getElementById('admin-op-mode').value) || 0
+                };
+                const ok = await sendCommand('/api/admin', 'POST', settings);
+                addLog('Admin settings saved'); addTerminalLine('Settings saved', 'cmd');
+                if (ok) toast('Settings saved', 'ok', 'cmd');
+            });
+
+            document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.add('hidden'));
+                    document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+                });
+            });
+
+            const pidToggle = document.getElementById('pid-mode-toggle');
+            const pidLabel = document.getElementById('pid-mode-label');
+            pidToggle.addEventListener('click', () => {
+                pidToggle.classList.toggle('on');
+                pidLabel.innerText = pidToggle.classList.contains('on') ? 'FIXED' : 'AUTO';
+                addTerminalLine('PID mode: ' + pidLabel.innerText, 'cmd');
+            });
+
+            document.getElementById('terminal-clear').addEventListener('click', () => {
+                document.getElementById('admin-terminal').innerHTML = '';
+            });
+
+            setupJogButton('jog-left-btn', '/api/move/left', { steps: 50 });
+            setupJogButton('jog-right-btn', '/api/move/right', { steps: 50 });
+            document.getElementById('go-home-btn').addEventListener('click', () => { sendCommand('/api/move/to', 'POST', { position: adminPositions.home || 500 }); });
+            document.getElementById('go-left-prox-btn').addEventListener('click', () => { sendCommand('/api/move/to', 'POST', { position: 0 }); });
+            document.getElementById('go-right-prox-btn').addEventListener('click', () => { sendCommand('/api/move/to', 'POST', { position: 16000 }); });
+            document.getElementById('goto-position-btn').addEventListener('click', () => {
+                const pos = parseInt(document.getElementById('goto-position-input').value);
+                if (!isNaN(pos)) sendCommand('/api/move/to', 'POST', { position: pos });
+            });
+
+            document.getElementById('save-positions-btn').addEventListener('click', async () => {
+                const positions = {
+                    home: parseInt(document.getElementById('pos-home').value) || 500,
+                    hp1: parseInt(document.getElementById('pos-hp1').value) || 3200,
+                    hp2: parseInt(document.getElementById('pos-hp2').value) || 6400,
+                    hp3: parseInt(document.getElementById('pos-hp3').value) || 9600,
+                    hp4: parseInt(document.getElementById('pos-hp4').value) || 12800,
+                    washing: parseInt(document.getElementById('pos-wash').value) || 15200
+                };
+                await sendCommand('/api/positions/save', 'POST', positions);
+                addTerminalLine('Positions saved', 'cmd');
+            });
+            document.getElementById('reset-positions-btn').addEventListener('click', async () => {
+                if (confirm('Reset all positions to defaults?')) {
+                    await sendCommand('/api/positions/reset', 'POST');
+                    addTerminalLine('Positions reset', 'warn');
+                }
+            });
+
+            document.getElementById('test-seq-btn').addEventListener('click', async () => {
+                const delay = parseInt(document.getElementById('test-seq-delay').value) || 5;
+                addTerminalLine('Test sequence started...', 'cmd');
+                await sendCommand('/api/test/sequence', 'POST', { delay: delay * 1000 });
+                addTerminalLine('Test sequence complete', 'info');
+            });
+
+            document.getElementById('refresh-diag-btn').addEventListener('click', async () => {
+                try {
+                    const resp = await fetch(API_BASE + '/api/diagnostics');
+                    const d = await resp.json();
+                    document.getElementById('diag-prox-left').innerText = d.prox_left_triggered ? 'TRIGGERED' : 'OPEN';
+                    document.getElementById('diag-prox-left').style.color = d.prox_left_triggered ? '#ff3b30' : '#00e676';
+                    document.getElementById('diag-prox-right').innerText = d.prox_right_triggered ? 'TRIGGERED' : 'OPEN';
+                    document.getElementById('diag-prox-right').style.color = d.prox_right_triggered ? '#ff3b30' : '#00e676';
+                    document.getElementById('diag-estop').innerText = d.estop_active ? 'ACTIVE!' : 'RELEASED';
+                    document.getElementById('diag-estop').style.color = d.estop_active ? '#ff3b30' : '#00e676';
+                    document.getElementById('diag-wifi').innerText = d.wifi_clients;
+                    document.getElementById('diag-heap').innerText = d.free_heap ? (d.free_heap / 1024).toFixed(1) + ' KB' : '--';
+                    document.getElementById('diag-cpu').innerText = d.cpu_freq ? d.cpu_freq + ' MHz' : '--';
+                    toast('Diagnostics refreshed', 'ok', 'cmd');
+                } catch(e) { addTerminalLine('Diagnostics fetch failed', 'err'); toast('Diagnostics fetch failed', 'err', 'fail'); }
+            });
+
+            document.getElementById('modal-cancel').addEventListener('click', () => { document.getElementById('heater-modal').classList.add('hidden'); });
+            document.getElementById('modal-save').addEventListener('click', async () => {
+                const enabled = document.getElementById('modal-heater-enabled').checked;
+                const setpoint = parseInt(document.getElementById('modal-heater-stay').value);
+                await sendCommand(`/api/heater/toggle?heater=${currentHeaterIndex}&enabled=${enabled}`, 'POST');
+                await sendCommand(`/api/heater/setpoint?heater=${currentHeaterIndex}&setpoint=${setpoint}`, 'POST');
+                document.getElementById('heater-modal').classList.add('hidden');
+                setTimeout(fetchSystemStatus, 200);
+                addLog(`H${currentHeaterIndex + 1}: ${enabled ? 'ON' : 'OFF'}, ${setpoint}\u00B0C`);
+                toast(`Heater ${currentHeaterIndex + 1}: ${enabled ? 'on' : 'off'} at ${setpoint}\u00B0C`, 'ok', 'cmd');
+            });
+            document.getElementById('heater-modal').addEventListener('click', (e) => { if (e.target === document.getElementById('heater-modal')) document.getElementById('heater-modal').classList.add('hidden'); });
+            adminModal.addEventListener('click', (e) => { if (e.target === adminModal) adminModal.classList.add('hidden'); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    adminModal.classList.add('hidden');
+                    document.getElementById('heater-modal').classList.add('hidden');
+                }
+            });
+        }
+
+        let adminPositions = {};
+
+        async function loadAdminSettings() {
+            try {
+                const response = await fetch(API_BASE + '/api/admin');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('admin-speed1').value = data.stepper1_speed || 2500;
+                    document.getElementById('admin-speed2').value = data.stepper2_speed || 1500;
+                    document.getElementById('admin-speed3').value = data.stepper3_speed || 1200;
+                    document.getElementById('admin-pump-dur').value = data.pump_duration || 3000;
+                    document.getElementById('admin-rot-dur').value = data.rotation_duration || 5000;
+                    document.getElementById('admin-valve-dly').value = data.valve_delay || 500;
+                    document.getElementById('admin-kp').value = data.pid_kp || 2.0;
+                    document.getElementById('admin-ki').value = data.pid_ki || 0.5;
+                    document.getElementById('admin-kd').value = data.pid_kd || 1.0;
+                    document.getElementById('admin-min-temp').value = data.min_temp || 150;
+                    document.getElementById('admin-stay-temp').value = data.stay_temp || 180;
+                    document.getElementById('admin-max-temp').value = data.max_temp || 190;
+                    document.getElementById('admin-bake-wait').value = data.bake_wait || 45;
+                    document.getElementById('admin-cycles').value = data.cycles || 2;
+                    document.getElementById('admin-op-mode').value = data.op_mode || 0;
+
+                    const pidToggle = document.getElementById('pid-mode-toggle');
+                    const pidLabel = document.getElementById('pid-mode-label');
+                    if (data.pid_mode === 1) { pidToggle.classList.add('on'); pidLabel.innerText = 'FIXED'; }
+                    else { pidToggle.classList.remove('on'); pidLabel.innerText = 'AUTO'; }
+
+                    if (data.positions) {
+                        adminPositions = data.positions;
+                        document.getElementById('pos-home').value = data.positions.home || 500;
+                        document.getElementById('pos-hp1').value = data.positions.hp1 || 3200;
+                        document.getElementById('pos-hp2').value = data.positions.hp2 || 6400;
+                        document.getElementById('pos-hp3').value = data.positions.hp3 || 9600;
+                        document.getElementById('pos-hp4').value = data.positions.hp4 || 12800;
+                        document.getElementById('pos-wash').value = data.positions.washing || 15200;
+                    }
+                }
+            } catch(e) { addTerminalLine('Failed to load admin settings', 'err'); }
+        }
+
+        function setupJogButton(id, endpoint, params) {
+            const btn = document.getElementById(id);
+            let interval;
+            const start = () => { sendCommand(endpoint + '?steps=' + (params.steps || 50), 'POST'); interval = setInterval(() => sendCommand(endpoint + '?steps=' + (params.steps || 50), 'POST'), 200); };
+            const stop = () => clearInterval(interval);
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('mouseup', stop);
+            btn.addEventListener('mouseleave', stop);
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); start(); });
+            btn.addEventListener('touchend', stop);
+        }
+
+        // Injera thickness is now 3 discrete settings (approved change):
+        //   1 = Thin  = 1 full revolution
+        //   2 = Medium = 2 full revolutions
+        //   3 = Thick = 3 full revolutions
+        const THICK_NAMES = { 1: 'Thin', 2: 'Medium', 3: 'Thick' };
+        let thicknessVal = 2;
+        function setThickness(n, silent) {
+            thicknessVal = Math.min(3, Math.max(1, parseInt(n, 10) || 2));
+            const el = document.getElementById('thick-val');
+            el.innerText = THICK_NAMES[thicknessVal];
+            bump(el);
+            const revs = document.getElementById('thickness-revs');
+            if (revs) revs.innerText = thicknessVal + (thicknessVal === 1 ? ' revolution' : ' revolutions');
+            document.querySelectorAll('#thickness-group button').forEach(b =>
+                b.classList.toggle('active', parseInt(b.dataset.thickness, 10) === thicknessVal));
+            if (!silent) sendCommand('/api/settings', 'POST', { thickness: thicknessVal });  // not on initial paint
+        }
+
+        function initSliders() {
+            document.querySelectorAll('#thickness-group button').forEach(btn =>
+                btn.addEventListener('click', () => setThickness(btn.dataset.thickness)));
+            setThickness(thicknessVal, true);   // paint initial selection (no command)
+            document.querySelectorAll('input[type="range"]').forEach(r => {
+                paintRange(r);
+                r.addEventListener('input', () => paintRange(r));
+            });
+            document.getElementById('global-temp-slider').addEventListener('input', (e) => {
+                const val = e.target.value;
+                document.getElementById('global-temp-val').innerText = val + '\u00B0C';
+                sendCommand('/api/settings', 'POST', { target_temp_global: parseInt(val) });
+            });
+            document.getElementById('yaxis-speed').addEventListener('input', (e) => {
+                const val = e.target.value;
+                document.getElementById('linear-val').innerText = val + '%';
+                sendCommand('/api/admin', 'POST', { stepper1_speed: parseInt(val) * 25 });
+            });
+            document.getElementById('rot-speed').addEventListener('input', (e) => {
+                const val = e.target.value;
+                document.getElementById('rot-speed-val').innerText = val + '%';
+                sendCommand('/api/admin', 'POST', { stepper2_speed: parseInt(val) * 15 });
+            });
+            document.getElementById('pump-speed').addEventListener('input', (e) => {
+                const val = e.target.value;
+                document.getElementById('pump-speed-val').innerText = val + '%';
+                sendCommand('/api/admin', 'POST', { stepper3_speed: parseInt(val) * 12 });
+            });
+        }
+
+        /* Cursor spotlight on cards and plates */
+        function initSpotlight() {
+            document.addEventListener('pointermove', (e) => {
+                const t = e.target.closest && e.target.closest('.glass-card, .plate-btn');
+                if (!t) return;
+                const r = t.getBoundingClientRect();
+                const x = e.clientX - r.left, y = e.clientY - r.top;
+                t.style.setProperty('--mx', x + 'px'); t.style.setProperty('--my', y + 'px');
+                t.style.setProperty('--x', x + 'px');  t.style.setProperty('--y', y + 'px');
+            }, { passive: true });
+        }
+
+        /* Keyboard access for the plate selector */
+        function initPlateA11y() {
+            document.querySelectorAll('.plate-btn').forEach((p, i) => {
+                p.setAttribute('role', 'button');
+                p.setAttribute('tabindex', '0');
+                p.setAttribute('aria-label', 'Baking plate ' + (i + 1));
+                p.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); moveActuator(i + 1); }
+                });
+            });
+        }
+
+        // ======================= AUTH / SESSION =======================
+        // IMPORTANT: this is the UI shell + session bookkeeping only. Real
+        // authentication and machine-ownership are enforced SERVER-SIDE in the
+        // cloud release (Phase 5); the browser never verifies a password or holds
+        // a privileged secret. "Local network" mode talks straight to the ESP32
+        // on the LAN, which is how the current (pre-cloud) phase operates.
+        const SESSION_KEY = 'ad_session_v1';
+        function readSession() {
+            try {
+                const s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+                if (!s) return null;
+                if (s.exp && Date.now() > s.exp) { clearSession(); return null; }  // expired
+                return s;
+            } catch (e) { return null; }
+        }
+        function writeSession(s) { try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch (e) {} }
+        function clearSession() { try { localStorage.removeItem(SESSION_KEY); } catch (e) {} }
+        function authHeader() { const s = readSession(); return (s && s.token) ? { 'Authorization': 'Bearer ' + s.token } : {}; }
+
+        function updateSessionChip(s) {
+            const chip = document.getElementById('session-chip');
+            if (!chip) return;
+            if (!s) { chip.classList.add('hidden'); return; }
+            chip.classList.remove('hidden');
+            document.getElementById('session-label').innerText = s.mode === 'local' ? 'LOCAL' : (s.email || 'ACCOUNT');
+        }
+
+        async function startSession() {
+            // Cloud takes precedence: a live Supabase session resumes the account.
+            if (sb) {
+                try {
+                    const { data } = await sb.auth.getSession();
+                    if (data && data.session) return enterCloud(data.session);
+                } catch (e) {}
+            }
+            // Local-network mode (a persisted choice; talks straight to the ESP32).
+            const s = readSession();
+            if (s && s.mode === 'local') { cloudMode = false; updateSessionChip(s); return enterDashboard(); }
+            showLogin();
+        }
+
+        // Resolve the signed-in user's machine (RLS returns only machines they own),
+        // then reveal the dashboard (or pairing if they have none yet).
+        async function enterCloud(session) {
+            cloudMode = true;
+            currentUserId = session.user ? session.user.id : null;
+            updateSessionChip({ mode: 'cloud', email: session.user && session.user.email });
+            try {
+                const { data, error } = await sb.from('machine_owners').select('machine_id').limit(1);
+                if (!error && data && data.length) {
+                    currentMachineId = data[0].machine_id;
+                    document.getElementById('login-overlay').classList.add('hidden');
+                    document.getElementById('pair-overlay').classList.add('hidden');
+                    return enterDashboard();
+                }
+            } catch (e) {}
+            return showPairing();   // signed in but no machine linked yet
+        }
+
+        function showLogin() {
+            document.getElementById('boot-overlay').classList.add('hidden');
+            document.getElementById('pair-overlay').classList.add('hidden');
+            const ov = document.getElementById('login-overlay');
+            ov.classList.remove('hidden');
+            document.getElementById('login-error').innerText = '';
+            setTimeout(() => { const el = document.getElementById('login-email'); if (el) el.focus(); }, 60);
+        }
+
+        async function doLogin(email, password) {
+            const err = document.getElementById('login-error');
+            const btn = document.getElementById('login-submit');
+            err.innerText = ''; btn.disabled = true; btn.innerText = 'Signing in…';
+            try {
+                if (!sb) {
+                    err.innerText = 'Cloud sign-in isn’t configured here. Use “Continue on local network”.';
+                    return;
+                }
+                const { data, error } = await sb.auth.signInWithPassword({ email, password });
+                if (error) { err.innerText = error.message || 'Sign in failed.'; return; }
+                clearSession();   // drop any prior local-mode flag
+                await enterCloud(data.session);
+            } catch (e) {
+                err.innerText = 'Sign-in error: ' + (e.message || 'network');
+            } finally { btn.disabled = false; btn.innerText = 'Sign in'; }
+        }
+
+        function continueLocal() {
+            const sess = { mode: 'local', email: null, exp: Date.now() + 30 * 86400000 };
+            writeSession(sess); updateSessionChip(sess);
+            cloudMode = false; currentMachineId = null;
+            document.getElementById('login-overlay').classList.add('hidden');
+            enterDashboard();
+        }
+
+        function showPairing() {
+            document.getElementById('boot-overlay').classList.add('hidden');
+            document.getElementById('login-overlay').classList.add('hidden');
+            document.getElementById('pair-overlay').classList.remove('hidden');
+            document.getElementById('pair-error').innerText = '';
+            setTimeout(() => { const el = document.getElementById('pair-code'); if (el) el.focus(); }, 60);
+        }
+
+        async function doPair(code) {
+            const err = document.getElementById('pair-error');
+            err.innerText = '';
+            if (!sb) { err.innerText = 'Pairing needs a cloud sign-in.'; return; }
+            try {
+                // Pairing consumes a single-use code server-side (an RPC/Edge Function
+                // that inserts the machine_owners row). The function is added with the
+                // device backend; until then, re-check whether a machine is already linked.
+                const { data, error } = await sb.rpc('claim_machine', { p_code: code });
+                if (!error) {
+                    currentMachineId = (data && data.machine_id) ? data.machine_id : code;
+                    document.getElementById('pair-overlay').classList.add('hidden');
+                    return enterDashboard();
+                }
+                // Fallback: maybe it's already linked (e.g. seeded for testing).
+                const { data: owned } = await sb.from('machine_owners').select('machine_id').limit(1);
+                if (owned && owned.length) {
+                    currentMachineId = owned[0].machine_id;
+                    document.getElementById('pair-overlay').classList.add('hidden');
+                    return enterDashboard();
+                }
+                err.innerText = 'Pairing isn’t enabled yet (the server pairing function is added with the device backend).';
+            } catch (e) {
+                err.innerText = 'Pairing error: ' + (e.message || 'try again');
+            }
+        }
+
+        async function signOut() {
+            try { if (sb) await sb.auth.signOut(); } catch (e) {}
+            clearSession(); updateSessionChip(null);
+            cloudMode = false; currentMachineId = null; currentUserId = null;
+            if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
+            pollingStarted = false;
+            document.getElementById('safety-overlay').classList.add('hidden');
+            document.getElementById('conn-banner').classList.add('hidden');
+            showLogin();
+        }
+
+        function setupAuth() {
+            document.getElementById('login-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                doLogin(document.getElementById('login-email').value.trim(), document.getElementById('login-pass').value);
+            });
+            document.getElementById('login-local').addEventListener('click', continueLocal);
+            document.getElementById('login-forgot').addEventListener('click', () =>
+                toast('Password reset arrives with cloud accounts (server-side).', 'cmd', 'forgot'));
+            document.getElementById('pair-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                doPair(document.getElementById('pair-code').value.trim());
+            });
+            document.getElementById('pair-signout').addEventListener('click', signOut);
+            document.getElementById('session-chip').addEventListener('click', () => {
+                if (confirm('Sign out of this session?')) signOut();
+            });
+        }
+
+        async function init() {
+            addLog('BAKING ZONE Web Interface v2.0');
+            const bootMsg = document.getElementById('boot-msg');
+            if (bootMsg) bootMsg.innerText = 'Connecting to machine…';
+            // Build the dashboard behind the overlays.
+            initSliders();
+            buildPlateGrid(4);          // default grid before the first status; the poll corrects the count
+                                        // (a11y attrs are set per tile inside buildPlateGrid, incl. rebuilds)
+            initSpotlight();
+            setupAdminPanel();
+            document.getElementById('big-calibrate-btn').addEventListener('click', startFullSystem);
+            document.getElementById('ip-address').innerText = window.location.hostname;
+            setupAuth();
+
+            // Auth gate decides whether to show login / pairing or reveal the
+            // dashboard; it then starts polling. (Honest: real auth is server-side,
+            // Phase 5 — this gates the UI and supports local-network use now.)
+            await startSession();
+        }
+
+        // Reveal the dashboard: hide boot + begin polling (idempotent).
+        let pollingStarted = false;
+        async function enterDashboard() {
+            document.getElementById('boot-overlay').classList.add('hidden');
+            if (pollingStarted) return;
+            pollingStarted = true;
+            await fetchSystemStatus();
+            pollingInterval = setInterval(fetchSystemStatus, 1500);
+            addLog('System ready');
+        }
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
