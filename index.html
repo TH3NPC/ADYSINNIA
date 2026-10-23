@@ -860,9 +860,9 @@
             </div>
 
             <div id="admin-login" class="p-6 space-y-4">
-                <p class="text-xs text-zinc-400">Enter administrator password:</p>
-                <input type="password" id="admin-password" class="pos-input" placeholder="Password" style="padding:10px 12px">
-                <button id="admin-login-btn" class="w-full py-2 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors">Login</button>
+                <p id="admin-gate-msg" class="text-sm text-zinc-300 leading-relaxed">Checking your account…</p>
+                <p class="text-xs text-zinc-500 leading-relaxed">The admin panel is for staff accounts (role tech or admin). On the machine's own network you can also use its setup page at <span class="mono text-zinc-300">http://&lt;machine-ip&gt;/tech</span>.</p>
+                <button id="admin-recheck" class="w-full py-2 bg-zinc-800 text-white rounded-lg text-sm hover:bg-zinc-700 transition-colors">Check again</button>
             </div>
 
             <div id="admin-content" class="hidden flex-col flex-grow overflow-hidden" style="max-height: calc(90vh - 60px);">
@@ -1059,7 +1059,7 @@
                     </div>
                 </div>
                 <div class="flex-none p-5 border-t border-white/10">
-                    <button id="admin-logout" class="w-full py-2 bg-zinc-800 text-white rounded-lg text-sm hover:bg-zinc-700 transition-colors">Logout</button>
+                    <button id="admin-logout" class="w-full py-2 bg-zinc-800 text-white rounded-lg text-sm hover:bg-zinc-700 transition-colors">Close</button>
                 </div>
             </div>
         </div>
@@ -1088,9 +1088,11 @@
         let currentHeatersData = [];
         let currentPlates = [];        // canonical per-plate data from /api/status plates[]
         let plateGridBuilt = 0;        // how many plate tiles are currently rendered
-        let isAdminLoggedIn = false;
+        let isAdminLoggedIn = false;   // true while a verified staff account has the panel open
+        let isStaff = null;            // null = not checked yet
+        let lastStatus = null;         // newest status object (local /api/status or cloud machine_status.raw)
+        let lastBenchMsg = '';
         let currentHeaterIndex = 0;
-        const ADMIN_PASSWORD = 'Yakob123';
         let jogInterval = null;
         const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -1303,7 +1305,7 @@
         // Cloud mode: turn an "/api/..." call into a row in the `commands` mailbox.
         // The device polls this table, executes, and updates status. RLS requires
         // the row to be for a machine the user owns, with issued_by = their uid.
-        async function queueCloudCommand(endpoint, body) {
+        async function queueCloudCommand(endpoint, body, quiet) {
             const [path, qs] = endpoint.split('?');
             const args = Object.assign({}, body || {});
             if (qs) qs.split('&').forEach(kv => { const [k, v] = kv.split('='); if (k) args[k] = decodeURIComponent(v || ''); });
@@ -1316,7 +1318,7 @@
                     expires_at: new Date(Date.now() + 120000).toISOString()   // stale commands expire
                 });
                 if (error) { addLog(`CMD cloud: ${type} -> ${error.message}`); toast('Command rejected: ' + error.message, 'err', 'fail'); return false; }
-                addLog(`CMD cloud: ${type} queued`);
+                if (!quiet) addLog(`CMD cloud: ${type} queued`);
                 const l = CMD_LABELS[path]; if (l) toast(l[0], l[1], 'cmd');
                 return true;
             } catch (e) {
@@ -1404,6 +1406,12 @@
                 }
 
                 // Canonical per-plate data; keep heaters[] mirror for getTarget().
+                lastStatus = data;
+                if (data.bench_info && data.bench_info.msg && data.bench_info.msg !== lastBenchMsg) {
+                    lastBenchMsg = data.bench_info.msg;
+                    addTerminalLine('Machine: ' + lastBenchMsg, 'info');
+                    if (isAdminLoggedIn || /pour|refused|stopped|sequence/.test(lastBenchMsg)) toast(lastBenchMsg, /refused|outside/.test(lastBenchMsg) ? 'err' : 'info', 'bench');
+                }
                 currentPlates = data.plates || [];
                 applyDoseLevels(data.dose, data.thickness_revs, data.thickness);
                 if (data.heaters) currentHeatersData = data.heaters;
@@ -1505,7 +1513,7 @@
             document.getElementById('term-temp').innerText = (data.temp_average > -40) ? data.temp_average.toFixed(1) + '\u00B0C' : '--';
             document.getElementById('term-pos').innerText = data.motor_a_pos || '0';
             document.getElementById('term-cycle').innerText = `${data.cycles_completed || 0}/${data.cycles_target || 0}`;
-            if (!jogHolds.a && Date.now() - lastJogPosAt > 1200) setLivePos(data.motor_a_pos);
+            if (cloudMode || (!jogHolds.a && Date.now() - lastJogPosAt > 1200)) setLivePos(data.motor_a_pos);
             latestMaxPos = data.calibrated ? data.maxpos : null;
             document.getElementById('admin-travel').innerText = latestMaxPos
                 ? `Travel: 0 (left sensor) to ${latestMaxPos} (right sensor)`
@@ -1639,32 +1647,34 @@
             const adminModal = document.getElementById('admin-modal');
             const adminLogin = document.getElementById('admin-login');
             const adminContent = document.getElementById('admin-content');
-            const adminPassword = document.getElementById('admin-password');
-            const loginBtn = document.getElementById('admin-login-btn');
             const adminClose = document.getElementById('admin-close');
             const adminLogout = document.getElementById('admin-logout');
             const adminSave = document.getElementById('admin-save');
 
-            settingsBtn.addEventListener('click', () => {
+            // Staff only: the signed-in account's profiles.role must be tech or admin.
+            // The database enforces the same rule for admin commands (staff_admin.sql).
+            const openAdmin = async (recheck) => {
                 adminModal.classList.remove('hidden');
-                if (isAdminLoggedIn) { adminLogin.classList.add('hidden'); adminContent.classList.remove('hidden'); adminContent.style.display = 'flex'; loadAdminSettings(); }
-                else { adminLogin.classList.remove('hidden'); adminContent.classList.add('hidden'); adminPassword.value = ''; }
-            });
-            adminClose.addEventListener('click', () => { adminModal.classList.add('hidden'); });
-            const tryLogin = () => {
-                if (adminPassword.value === ADMIN_PASSWORD) {
+                adminLogin.classList.remove('hidden'); adminContent.classList.add('hidden'); adminContent.style.display = 'none';
+                const msg = document.getElementById('admin-gate-msg');
+                msg.innerText = 'Checking your account…';
+                if (recheck || isStaff === null) isStaff = await checkStaff();
+                if (isStaff) {
                     isAdminLoggedIn = true; adminLogin.classList.add('hidden');
                     adminContent.classList.remove('hidden'); adminContent.style.display = 'flex';
-                    loadAdminSettings(); addLog('Admin unlocked');
-                } else { alert('Wrong password!'); }
+                    loadAdminSettings(); addLog('Admin opened (staff account)');
+                    return;
+                }
+                isAdminLoggedIn = false;
+                msg.innerText = !currentUserId
+                    ? 'Sign in with a staff account to use the admin panel.'
+                    : 'This account is not a staff account, so the admin panel is locked. An admin can change the role in Supabase (profiles.role = tech or admin).';
             };
-            loginBtn.addEventListener('click', tryLogin);
-            adminPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
-            adminLogout.addEventListener('click', () => {
-                isAdminLoggedIn = false; adminLogin.classList.remove('hidden');
-                adminContent.classList.add('hidden'); adminContent.style.display = 'none';
-                addLog('Admin logged out');
-            });
+            settingsBtn.addEventListener('click', () => openAdmin(false));
+            document.getElementById('admin-recheck').addEventListener('click', () => openAdmin(true));
+            const closeAdmin = () => { adminModal.classList.add('hidden'); isAdminLoggedIn = false; Object.keys(jogHolds).forEach(jogRelease); };
+            adminClose.addEventListener('click', closeAdmin);
+            adminLogout.addEventListener('click', closeAdmin);
             adminSave.addEventListener('click', async () => {
                 const read = readAdminInputs();
                 if (read.error) { toast(read.error, 'err', 'admin'); return; }
@@ -1768,17 +1778,22 @@
 
         async function loadAdminSettings() {
             try {
-                const response = await fetch(API_BASE + '/api/admin');
-                if (response.ok) {
-                    const data = await response.json();
-                    fillAdminInputs(data);
-
-                    if (data.positions) {
-                        adminPositions = data.positions;
-                        renderPositionRows(data);
-                    }
-                    loadJogConfig();
+                let data = null;
+                if (cloudMode) {
+                    // Over the cloud the machine reports its admin values inside its status.
+                    data = lastStatus && lastStatus.admin;
+                    if (!data) { addTerminalLine('This machine does not report its admin settings over the cloud yet. Use the local network.', 'warn'); toast('Admin settings: open the dashboard on the machine\'s network for this firmware.', 'err', 'admin'); return; }
+                } else {
+                    const response = await fetch(API_BASE + '/api/admin');
+                    if (response.ok) data = await response.json();
                 }
+                if (!data) return;
+                fillAdminInputs(data);
+                if (data.positions) {
+                    adminPositions = data.positions;
+                    renderPositionRows(data);
+                }
+                loadJogConfig();
             } catch(e) { addTerminalLine('Failed to load admin settings', 'err'); }
         }
 
@@ -1829,6 +1844,14 @@
                 try { j = await r.json(); } catch (_) {}
                 return { ok: r.ok, ...j };
             } catch (e) { return { ok: false, message: 'Machine not reachable.' }; }
+        }
+
+        async function checkStaff() {
+            if (!sb || !currentUserId) return false;
+            try {
+                const { data, error } = await sb.from('profiles').select('role').eq('id', currentUserId).maybeSingle();
+                return !error && !!data && (data.role === 'tech' || data.role === 'admin');
+            } catch (e) { return false; }
         }
 
         // ---- General settings: exactly the values the firmware uses ----
@@ -1889,7 +1912,16 @@
             el.style.color = good === true ? '#00e676' : good === false ? '#ff3b30' : '#d4d4d8';
         }
         async function refreshDiagnostics(announce) {
-            const [d, st] = await Promise.all([apiJson('/api/diagnostics'), apiJson('/api/status')]);
+            let d, st;
+            if (cloudMode) {
+                const L = lastStatus || {};
+                st = { ok: !!lastStatus, ...L };
+                d = { ok: !!lastStatus, prox_left_triggered: !!L.prox_left, prox_right_triggered: !!L.prox_right,
+                      estop_active: L.mode === 6, aux_healthy: !!(L.connection && L.connection.atmega_i2c),
+                      wifi_clients: L.connection && L.connection.wifi ? 1 : 0, free_heap: null, cpu_freq: null };
+            } else {
+                [d, st] = await Promise.all([apiJson('/api/diagnostics'), apiJson('/api/status')]);
+            }
             if (!d.ok) { if (announce) toast('Diagnostics fetch failed', 'err', 'fail'); addTerminalLine('Diagnostics fetch failed', 'err'); return; }
             setDiag('diag-prox-left', d.prox_left_triggered ? 'DETECTED' : 'CLEAR', d.prox_left_triggered ? null : true);
             setDiag('diag-prox-right', d.prox_right_triggered ? 'DETECTED' : 'CLEAR', d.prox_right_triggered ? null : true);
@@ -1921,12 +1953,18 @@
                 `Driver ${c.a.ppr} pulses/rev. Defaults ${d.rps} rev/s, ${d.acc} rev/s\u00b2, ${d.smooth_ms} ms. `
                 + 'Applies to jogging only (baking moves keep the proven profile). Saved on the machine.';
         }
+        function cloudJogAllowed() { return !!(lastStatus && lastStatus.jog && lastStatus.jog.cloud); }
         async function loadJogConfig() {
+            if (cloudMode) { if (lastStatus && lastStatus.jogcfg) fillJogConfig(lastStatus.jogcfg); return; }
             const c = await apiJson('/api/jog/config');
             if (c.ok) fillJogConfig(c);
         }
         async function jogConfigPost(path, okMsg) {
-            if (cloudMode) { toast('Jog settings work on the local network only.', 'err', 'jogcfg'); return; }
+            if (cloudMode) {
+                if (!cloudJogAllowed()) { toast('Jog settings work on the local network only.', 'err', 'jogcfg'); return; }
+                if (await queueCloudCommand(path, null)) { toast(okMsg + ' (sent)', 'ok', 'jogcfg'); setTimeout(loadJogConfig, 3000); }
+                return;
+            }
             const c = await apiJson(path, { method: 'POST' });
             if (!c.ok) { toast(c.message || 'Jog settings rejected.', 'err', 'jogcfg'); return; }
             fillJogConfig(c);
@@ -2007,6 +2045,7 @@
             if (h.t) clearInterval(h.t);
             h.btn.classList.remove('active');
             delete jogHolds[key];
+            if (h.cloud) { queueCloudCommand(`/api/jog/release?axis=${h.axis}`, null, true); return; }
             jogFetch(`/api/jog/release?axis=${h.axis}`, h.axis);
             if (h.axis === 'a') followJogStop();
         }
@@ -2016,8 +2055,20 @@
             btn.style.touchAction = 'none';
             btn.addEventListener('pointerdown', async (e) => {
                 e.preventDefault();
-                if (cloudMode) { toast('Jog works on the local network only — a held button cannot be guaranteed over the cloud.', 'err', 'jog'); return; }
+                if (cloudMode && !cloudJogAllowed()) { toast('Jog works on the local network only — a held button cannot be guaranteed over the cloud.', 'err', 'jog'); return; }
                 jogRelease(axis);
+                if (cloudMode) {
+                    // Bench firmware only (status.jog.cloud): the press and its refreshes go
+                    // through the command mailbox with the browser time, so the board can drop
+                    // late ones; it stops by itself 1.5 s after the last refresh.
+                    try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+                    const h = { btn, axis, t: null, released: false, cloud: true };
+                    jogHolds[axis] = h;
+                    btn.classList.add('active');
+                    queueCloudCommand(`/api/jog/press?axis=${axis}&dir=${dir}&t=${Date.now()}`, null, true);
+                    h.t = setInterval(() => queueCloudCommand(`/api/jog/keepalive?axis=${axis}&dir=${dir}&t=${Date.now()}`, null, true), 500);
+                    return;
+                }
                 try { btn.setPointerCapture(e.pointerId); } catch (_) {}
                 const h = { btn, axis, t: null, released: false };
                 jogHolds[axis] = h;
@@ -2169,6 +2220,7 @@
         // Resolve the signed-in user's machine (RLS returns only machines they own),
         // then reveal the dashboard (or pairing if they have none yet).
         async function enterCloud(session) {
+            isStaff = null;
             cloudMode = !SERVED_BY_MACHINE;
             currentUserId = session.user ? session.user.id : null;
             updateSessionChip({ mode: 'cloud', email: session.user && session.user.email });
@@ -2263,7 +2315,7 @@
         async function signOut() {
             try { if (sb) await sb.auth.signOut(); } catch (e) {}
             clearSession(); updateSessionChip(null); showTgBtn(false);
-            cloudMode = false; currentMachineId = null; currentUserId = null;
+            cloudMode = false; currentMachineId = null; currentUserId = null; isStaff = null; isAdminLoggedIn = false;
             if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
             pollingStarted = false;
             document.getElementById('safety-overlay').classList.add('hidden');
