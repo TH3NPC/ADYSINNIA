@@ -273,6 +273,38 @@
         }
         .lang-dropdown:hover { border-color: var(--glow-dim); }
         #settings-btn { transition: transform 0.5s var(--ease), border-color 0.2s; }
+
+        /* ---------- Header controls: one height, one shape ---------- */
+        .hdr-ctl {
+            height: 40px; min-width: 40px; border-radius: 999px;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: rgba(15, 15, 17, 0.9); border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #d4d4d8; cursor: pointer;
+            transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+        }
+        .hdr-ctl:hover { border-color: var(--glow-dim); background-color: var(--surface-light); color: #fff; }
+        .hdr-ctl:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+        .hdr-ctl.hidden { display: none; }
+        .hdr-icon svg { width: 18px; height: 18px; }
+        #session-chip:hover { color: var(--danger); border-color: rgba(255, 59, 48, 0.45); }
+        .hdr-account { gap: 10px; padding: 0 16px 0 5px; max-width: 260px; }
+        .hdr-avatar {
+            width: 30px; height: 30px; border-radius: 50%; flex: none;
+            display: grid; place-items: center;
+            background: linear-gradient(135deg, var(--glow), var(--ember));
+            color: #0a0a0a; font-size: 13px; font-weight: 800; line-height: 1;
+        }
+        .hdr-email {
+            min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            font-size: 13px; font-weight: 500; letter-spacing: 0; color: inherit;
+        }
+        .hdr-power { height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.06); }
+        @media (max-width: 640px) {
+            .hdr-ctl { height: 44px; min-width: 44px; }
+            .hdr-account { padding: 0 6px; }
+            .hdr-email { display: none; }
+            .hdr-avatar { width: 32px; height: 32px; }
+        }
         #settings-btn:hover { transform: rotate(60deg); }
 
         /* ---------- Heater tiles ---------- */
@@ -566,7 +598,7 @@
     </div>
 
     <!-- Navigation -->
-    <nav class="reveal w-full max-w-7xl flex items-start justify-between mb-5 lg:mb-8 border-b border-white/10 pb-4 lg:pb-6" style="--i:0">
+    <nav class="reveal w-full max-w-7xl flex items-center justify-between mb-5 lg:mb-8 border-b border-white/10 pb-4 lg:pb-6" style="--i:0">
         <div class="flex flex-col">
             <h1 class="text-2xl md:text-4xl font-black tracking-tighter italic text-white leading-none">
                 <span class="sheen">ADYSINNIA</span> <span class="text-[#ffb300]">IND.</span>
@@ -580,14 +612,8 @@
                 </select>
             </div>
         </div>
-        <div class="flex items-center gap-4 md:gap-6">
-            <div class="text-right hidden md:block">
-                <span class="text-[9px] text-zinc-500 block uppercase mono" data-i18n="tagline">ADYSINNIA AUTOMATION</span>
-                <span class="text-sm font-bold tracking-widest uppercase flex gap-2 justify-end">
-                    <span class="text-zinc-600 text-[10px] self-center">PARTNERED WITH</span><span class="text-[#ffb300]">CURRENT OS</span>
-                </span>
-            </div>
-            <div class="hidden sm:flex flex-col gap-1">
+        <div class="flex items-center gap-2 md:gap-3">
+            <div class="hdr-power hidden sm:flex flex-col justify-center gap-1.5">
                 <div class="flex gap-1.5">
                     <div class="vbar h-1 w-6 bg-yellow-500 rounded-full"></div>
                     <div class="vbar h-1 w-6 bg-yellow-500/30 rounded-full" id="voltage-bar-2"></div>
@@ -595,13 +621,16 @@
                 </div>
                 <span class="text-[9px] text-zinc-400 mono uppercase" id="power-status" data-i18n="power">3-Phase: -- Sensing</span>
             </div>
-            <button id="tg-alerts-btn" class="lang-dropdown hidden" title="My profile" style="padding:8px 12px; font-size:14px;">&#128100;</button>
-            <button id="session-chip" class="lang-dropdown hidden" title="Sign out" style="padding:6px 12px; font-size:10px; display:flex; align-items:center; gap:6px;">
-                <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#00e676]"></span>
-                <span id="session-label" class="mono uppercase tracking-widest">LOCAL</span>
-                <span class="text-zinc-500">&#x23FB;</span>
+            <button id="tg-alerts-btn" class="hdr-ctl hdr-account hidden" title="My profile" aria-label="Open my profile">
+                <span id="hdr-avatar" class="hdr-avatar" aria-hidden="true">A</span>
+                <span id="session-label" class="hdr-email">Account</span>
             </button>
-            <button id="settings-btn" title="Admin Settings" aria-label="Admin Settings" class="lang-dropdown" style="padding:8px 14px; font-size: 16px; display:none;">&#x2699;</button>
+            <button id="session-chip" class="hdr-ctl hdr-icon hidden" title="Sign out" aria-label="Sign out">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v8"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/></svg>
+            </button>
+            <button id="settings-btn" title="Admin Settings" aria-label="Admin Settings" class="hdr-ctl hdr-icon" style="display:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+            </button>
         </div>
     </nav>
 
@@ -628,12 +657,17 @@
                             <span class="text-zinc-400" data-i18n="thickness">Injera Thickness</span>
                             <span class="text-yellow-500 mono text-base" id="thick-val">Medium</span>
                         </div>
-                        <div class="flex items-center gap-2" id="thickness-group">
-                            <button data-thickness="1" class="jog-btn flex-1 text-center text-sm leading-none" aria-label="Thin - 1 revolution">Thin</button>
-                            <button data-thickness="2" class="jog-btn flex-1 text-center text-sm leading-none" aria-label="Medium - 2 revolutions">Medium</button>
-                            <button data-thickness="3" class="jog-btn flex-1 text-center text-sm leading-none" aria-label="Thick - 3 revolutions">Thick</button>
+                        <div class="grid grid-cols-5 gap-2" id="thickness-group" role="radiogroup" aria-label="Injera thickness">
+                            <button data-thickness="1" class="jog-btn text-center text-sm leading-none mono" role="radio" aria-label="Level 1, thinnest">1</button>
+                            <button data-thickness="2" class="jog-btn text-center text-sm leading-none mono" role="radio" aria-label="Level 2, thin">2</button>
+                            <button data-thickness="3" class="jog-btn text-center text-sm leading-none mono" role="radio" aria-label="Level 3, medium">3</button>
+                            <button data-thickness="4" class="jog-btn text-center text-sm leading-none mono" role="radio" aria-label="Level 4, thick">4</button>
+                            <button data-thickness="5" class="jog-btn text-center text-sm leading-none mono" role="radio" aria-label="Level 5, thickest">5</button>
                         </div>
-                        <div class="text-[9px] text-zinc-600 mono mt-2 text-right" id="thickness-revs">2 revolutions</div>
+                        <div class="flex justify-between text-[9px] text-zinc-600 uppercase tracking-wider mt-2">
+                            <span>Thinner</span><span>Thicker</span>
+                        </div>
+                        <div class="text-[9px] text-zinc-500 mono mt-1 text-right" id="thickness-revs">2 nozzle turns</div>
                     </div>
                     <div>
                         <div class="flex justify-between items-center text-xs mb-3">
@@ -644,36 +678,6 @@
                     </div>
                 </div>
             </div>
-            <details class="reveal glass-card p-4 rounded-2xl border-yellow-500/10 bg-yellow-500/[0.02] group order-6 lg:order-none" style="--i:7">
-                <summary class="flex items-center gap-2 cursor-pointer list-none py-1">
-                    <div class="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></div>
-                    <h3 class="text-[11px] font-bold text-zinc-300 uppercase tracking-widest" data-i18n="engZone">Engineering Zone</h3>
-                    <span class="text-zinc-600 text-xs ml-auto group-open:rotate-180 transition-transform">&#9662;</span>
-                </summary>
-                <div class="space-y-6 mt-5">
-                    <div>
-                        <div class="flex justify-between text-[10px] mb-3">
-                            <span class="text-zinc-400 uppercase" data-i18n="linearSpeed">Y-Axis Speed</span>
-                            <span class="text-yellow-500 mono" id="linear-val">85%</span>
-                        </div>
-                        <input type="range" id="yaxis-speed" min="10" max="100" value="85">
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-[10px] mb-3">
-                            <span class="text-zinc-400 uppercase">Rotation RPM</span>
-                            <span class="text-yellow-500 mono" id="rot-speed-val">60%</span>
-                        </div>
-                        <input type="range" id="rot-speed" min="10" max="100" value="60">
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-[10px] mb-3">
-                            <span class="text-zinc-400 uppercase">Pump Flow</span>
-                            <span class="text-yellow-500 mono" id="pump-speed-val">50%</span>
-                        </div>
-                        <input type="range" id="pump-speed" min="10" max="100" value="50">
-                    </div>
-                </div>
-            </details>
             <details class="reveal glass-card p-4 rounded-2xl relative overflow-hidden group order-7 lg:order-none" style="--i:8">
                 <summary class="text-[11px] font-bold text-zinc-500 uppercase tracking-widest cursor-pointer list-none flex justify-between items-center py-1" data-i18n="deviceInfo">
                     Device Information
@@ -863,123 +867,81 @@
 
             <div id="admin-content" class="hidden flex-col flex-grow overflow-hidden" style="max-height: calc(90vh - 60px);">
                 <!-- Admin Tabs -->
-                <div class="flex gap-2 px-5 pt-4 pb-2 border-b border-white/5 overflow-x-auto">
-                    <button class="admin-tab-btn active" data-tab="general">General</button>
-                    <button class="admin-tab-btn" data-tab="positions">Positions</button>
-                    <button class="admin-tab-btn" data-tab="terminal">Live Terminal</button>
-                    <button class="admin-tab-btn" data-tab="diagnostics">Diagnostics</button>
+                <div class="flex flex-none gap-2 px-5 pt-4 pb-3 border-b border-white/5 overflow-x-auto" role="tablist">
+                    <button class="admin-tab-btn active" data-tab="general" role="tab" aria-selected="true">General</button>
+                    <button class="admin-tab-btn" data-tab="positions" role="tab" aria-selected="false">Positions</button>
+                    <button class="admin-tab-btn" data-tab="terminal" role="tab" aria-selected="false">Live Terminal</button>
+                    <button class="admin-tab-btn" data-tab="diagnostics" role="tab" aria-selected="false">Diagnostics</button>
                 </div>
 
-                <div class="flex-grow overflow-y-auto p-5 space-y-4">
+                <div class="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
                     <!-- GENERAL TAB -->
                     <div id="tab-general" class="admin-tab-content">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="text-[10px] text-zinc-400 block mb-1">Y-Axis Max Speed (steps/s)</label>
-                                <input type="number" id="admin-speed1" class="pos-input">
-                            </div>
-                            <div>
-                                <label class="text-[10px] text-zinc-400 block mb-1">Rotation Speed (steps/s)</label>
-                                <input type="number" id="admin-speed2" class="pos-input">
-                            </div>
-                            <div>
-                                <label class="text-[10px] text-zinc-400 block mb-1">Pump Speed (steps/s)</label>
-                                <input type="number" id="admin-speed3" class="pos-input">
-                            </div>
-                            <div>
-                                <label class="text-[10px] text-zinc-400 block mb-1">Pump Duration (ms)</label>
-                                <input type="number" id="admin-pump-dur" class="pos-input">
-                            </div>
-                            <div>
-                                <label class="text-[10px] text-zinc-400 block mb-1">Rotation Duration (ms)</label>
-                                <input type="number" id="admin-rot-dur" class="pos-input">
-                            </div>
-                            <div>
-                                <label class="text-[10px] text-zinc-400 block mb-1">Valve Delay (ms)</label>
-                                <input type="number" id="admin-valve-dly" class="pos-input">
-                            </div>
+                        <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Baking sequence</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label for="admin-cycles" class="text-[10px] text-zinc-400 block mb-1">Cycles per start</label><input type="number" id="admin-cycles" class="pos-input" min="1" max="999" step="1" inputmode="numeric"></div>
+                            <div><label for="admin-plate-delay" class="text-[10px] text-zinc-400 block mb-1">Wait at plate before pour (s)</label><input type="number" id="admin-plate-delay" class="pos-input" min="0" max="3600" step="1" inputmode="numeric"></div>
+                            <div><label for="admin-home-wait" class="text-[10px] text-zinc-400 block mb-1">Wait at home (s)</label><input type="number" id="admin-home-wait" class="pos-input" min="0" max="3600" step="1" inputmode="numeric"></div>
+                            <div><label for="admin-cycle-wait" class="text-[10px] text-zinc-400 block mb-1">Wait between cycles (s)</label><input type="number" id="admin-cycle-wait" class="pos-input" min="0" max="3600" step="1" inputmode="numeric"></div>
                         </div>
                         <div class="mt-4 border-t border-white/10 pt-4">
-                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">PID Control</p>
-                            <div class="flex items-center gap-3 mb-3">
-                                <span class="text-xs text-zinc-400">Mode:</span>
-                                <button id="pid-mode-toggle" class="toggle-switch on" aria-label="PID mode"></button>
-                                <span id="pid-mode-label" class="text-xs mono text-yellow-500">FIXED</span>
+                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Pour (Motor B)</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div><label for="admin-mb-steps" class="text-[10px] text-zinc-400 block mb-1">Pulses per nozzle turn</label><input type="number" id="admin-mb-steps" class="pos-input" min="200" max="51200" step="1" inputmode="numeric"></div>
+                                <div><label for="admin-mb-speed" class="text-[10px] text-zinc-400 block mb-1">Step period (&micro;s)</label><input type="number" id="admin-mb-speed" class="pos-input" min="100" max="100000" step="1" inputmode="numeric"></div>
                             </div>
-                            <div class="grid grid-cols-3 gap-2">
-                                <div>
-                                    <label class="text-[10px] text-zinc-400">Kp</label>
-                                    <input type="text" id="admin-kp" class="pos-input">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] text-zinc-400">Ki</label>
-                                    <input type="text" id="admin-ki" class="pos-input">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] text-zinc-400">Kd</label>
-                                    <input type="text" id="admin-kd" class="pos-input">
-                                </div>
-                            </div>
+                            <p id="admin-mb-hint" class="text-[10px] text-zinc-500 mt-2">Must match the Motor B driver DIP setting.</p>
                         </div>
                         <div class="mt-4 border-t border-white/10 pt-4">
-                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Temperature Range (Stay Heat)</p>
-                            <div class="grid grid-cols-3 gap-2">
-                                <div>
-                                    <label class="text-[10px] text-zinc-400">Min (&#xB0;C)</label>
-                                    <input type="number" id="admin-min-temp" class="pos-input">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] text-zinc-400">Stay (&#xB0;C)</label>
-                                    <input type="number" id="admin-stay-temp" class="pos-input">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] text-zinc-400">Max (&#xB0;C)</label>
-                                    <input type="number" id="admin-max-temp" class="pos-input">
-                                </div>
+                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Calibration speed (Motor A)</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div><label for="admin-calib-fast" class="text-[10px] text-zinc-400 block mb-1">Fast approach period (&micro;s)</label><input type="number" id="admin-calib-fast" class="pos-input" min="100" max="100000" step="1" inputmode="numeric"></div>
+                                <div><label for="admin-calib-slow" class="text-[10px] text-zinc-400 block mb-1">Soft touch period (&micro;s)</label><input type="number" id="admin-calib-slow" class="pos-input" min="100" max="100000" step="1" inputmode="numeric"></div>
                             </div>
+                            <p class="text-[10px] text-zinc-500 mt-2">Bigger period = slower. Calibration finds the left sensor (0), then the right sensor (max).</p>
                         </div>
                         <div class="mt-4 border-t border-white/10 pt-4">
-                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Operation</p>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label class="text-[10px] text-zinc-400">Bake Wait (s)</label>
-                                    <input type="number" id="admin-bake-wait" class="pos-input">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] text-zinc-400">Cycles</label>
-                                    <input type="number" id="admin-cycles" class="pos-input">
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3 mt-3">
-                                <span class="text-xs text-zinc-400">Mode:</span>
-                                <select id="admin-op-mode" class="pos-input" style="width:auto; min-width:120px;">
-                                    <option value="0">Automatic</option>
-                                    <option value="1">Manual</option>
-                                </select>
-                            </div>
+                            <p class="text-[10px] text-zinc-400 mb-1 uppercase tracking-wider">Temperature</p>
+                            <p id="admin-thermal-note" class="text-[10px] text-zinc-500 leading-relaxed">Heating control stays off in the firmware until the plates are calibrated (docs/CALIBRATION_PROCEDURES.md). Live sensor status is in Diagnostics.</p>
                         </div>
                         <button id="admin-save" class="w-full mt-4 py-2 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors">Save Settings</button>
+                        <button id="admin-copy-config" class="w-full mt-2 py-2 bg-zinc-800 text-zinc-200 rounded-lg text-sm hover:bg-zinc-700 transition-colors">Copy for Config.h</button>
+                        <pre id="admin-config-block" class="hidden mt-2 p-2 rounded-lg bg-black/60 border border-white/10 text-[10px] mono text-zinc-300 overflow-x-auto select-all"></pre>
+                        <p class="text-[10px] text-zinc-500 mt-2 leading-relaxed">Saved settings last until the machine restarts. To keep them, paste the copied lines into Config.h and upload the firmware.</p>
                     </div>
 
                     <!-- POSITIONS TAB -->
                     <div id="tab-positions" class="admin-tab-content hidden">
                         <div class="mb-4">
                             <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Motor A Position Control</p>
-                            <div class="flex items-center gap-3 mb-3">
-                                <span class="text-xs text-zinc-400">Current:</span>
-                                <span id="admin-motor-pos" class="text-lg mono text-yellow-500">0</span>
-                                <span class="text-xs text-zinc-400">steps</span>
-                                <span id="admin-calib-status" class="text-[10px] mono text-red-400 ml-auto">NOT CALIBRATED</span>
+                            <div class="flex items-end gap-3 mb-1">
+                                <span id="admin-motor-pos" class="text-3xl mono text-yellow-500 leading-none">0</span>
+                                <span class="text-xs text-zinc-400 pb-0.5">steps</span>
+                                <span id="admin-calib-status" class="text-[10px] mono text-red-400 ml-auto pb-0.5">NOT CALIBRATED</span>
                             </div>
+                            <p id="admin-travel" class="text-[10px] mono text-zinc-500 mb-3">Travel: calibrate to measure (left sensor = 0)</p>
                             <div class="flex gap-2">
                                 <button id="jog-left-btn" class="jog-btn flex-1 text-center">&#x25C0; LEFT</button>
                                 <button id="jog-right-btn" class="jog-btn flex-1 text-center">RIGHT &#x25B6;</button>
                             </div>
                             <div class="flex gap-2 mt-2">
                                 <button id="go-home-btn" class="jog-btn flex-1 text-center text-[10px]">HOME</button>
-                                <button id="go-left-prox-btn" class="jog-btn flex-1 text-center text-[10px]">LEFT PROX</button>
-                                <button id="go-right-prox-btn" class="jog-btn flex-1 text-center text-[10px]">RIGHT PROX</button>
+                                <button id="go-left-prox-btn" class="jog-btn flex-1 text-center text-[10px]">LEFT END</button>
+                                <button id="go-right-prox-btn" class="jog-btn flex-1 text-center text-[10px]">RIGHT END</button>
                             </div>
+                        </div>
+                        <div class="border-t border-white/10 pt-4 mb-4">
+                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Jog Settings (Motor A)</p>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div><label for="jog-rps" class="text-[10px] text-zinc-400">Max speed (rev/s)</label><input type="number" id="jog-rps" class="pos-input" step="0.1" min="0.05" max="20" inputmode="decimal"></div>
+                                <div><label for="jog-acc" class="text-[10px] text-zinc-400">Accel (rev/s&sup2;)</label><input type="number" id="jog-acc" class="pos-input" step="0.1" min="0.05" max="200" inputmode="decimal"></div>
+                                <div><label for="jog-smooth" class="text-[10px] text-zinc-400">Smoothing (ms)</label><input type="number" id="jog-smooth" class="pos-input" step="1" min="0" max="250" inputmode="numeric"></div>
+                            </div>
+                            <div class="flex gap-2 mt-2">
+                                <button id="jog-cfg-apply" class="flex-1 py-2 bg-yellow-500 text-black font-bold rounded-lg text-sm hover:bg-yellow-400 transition-colors">Apply</button>
+                                <button id="jog-cfg-reset" class="py-2 px-4 bg-zinc-800 text-zinc-300 rounded-lg text-sm hover:bg-zinc-700 transition-colors">Defaults</button>
+                            </div>
+                            <p id="jog-cfg-note" class="text-[10px] text-zinc-500 mt-2 leading-relaxed">Applies to jogging only. Saved on the machine.</p>
                         </div>
                         <div class="border-t border-white/10 pt-4 mb-4">
                             <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Go to Position</p>
@@ -989,26 +951,19 @@
                             </div>
                         </div>
                         <div class="border-t border-white/10 pt-4 mb-4">
-                            <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Station Positions (steps)</p>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div><label class="text-[10px] text-zinc-400">Home</label><input type="number" id="pos-home" class="pos-input"></div>
-                                <div><label class="text-[10px] text-zinc-400">HP1</label><input type="number" id="pos-hp1" class="pos-input"></div>
-                                <div><label class="text-[10px] text-zinc-400">HP2</label><input type="number" id="pos-hp2" class="pos-input"></div>
-                                <div><label class="text-[10px] text-zinc-400">HP3</label><input type="number" id="pos-hp3" class="pos-input"></div>
-                                <div><label class="text-[10px] text-zinc-400">HP4</label><input type="number" id="pos-hp4" class="pos-input"></div>
-                                <div><label class="text-[10px] text-zinc-400">Washing</label><input type="number" id="pos-wash" class="pos-input"></div>
-                            </div>
+                            <p class="text-[10px] text-zinc-400 mb-1 uppercase tracking-wider">Station Positions (steps)</p>
+                            <p class="text-[10px] text-zinc-500 mb-2 leading-relaxed">Jog to a station, press <span class="text-zinc-300">Use current</span>, then Save.</p>
+                            <div id="pos-rows" class="space-y-2"></div>
                             <button id="save-positions-btn" class="w-full mt-3 py-2 bg-yellow-500 text-black font-bold rounded-lg text-sm hover:bg-yellow-400 transition-colors">Save Positions</button>
+                            <button id="copy-positions-btn" class="w-full mt-2 py-2 bg-zinc-800 text-zinc-200 rounded-lg text-sm hover:bg-zinc-700 transition-colors">Copy for Config.h</button>
+                            <pre id="pos-config-block" class="hidden mt-2 p-2 rounded-lg bg-black/60 border border-white/10 text-[10px] mono text-zinc-300 overflow-x-auto select-all"></pre>
+                            <p class="text-[10px] text-zinc-500 mt-2 leading-relaxed">Saved positions last until the machine restarts. To keep them, paste the copied lines into Config.h section 11 and upload the firmware.</p>
                             <button id="reset-positions-btn" class="w-full mt-2 py-2 bg-zinc-800 text-zinc-400 rounded-lg text-sm hover:bg-zinc-700 transition-colors">Reset to Defaults</button>
                         </div>
                         <div class="border-t border-white/10 pt-4">
                             <p class="text-[10px] text-zinc-400 mb-2 uppercase tracking-wider">Test Sequence</p>
-                            <div class="flex gap-2 mb-2">
-                                <input type="number" id="test-seq-delay" class="pos-input flex-1" value="5" min="1" max="60">
-                                <span class="text-xs text-zinc-400 self-center">sec delay</span>
-                            </div>
-                            <button id="test-seq-btn" class="w-full py-2 bg-green-600 text-white font-bold rounded-lg text-sm hover:bg-green-500 transition-colors">Run Test Sequence</button>
-                            <p class="text-[9px] text-zinc-500 mt-1">Home &#x2192; HP1 &#x2192; HP2 &#x2192; HP3 &#x2192; HP4 &#x2192; Home &#x2192; Wash</p>
+                            <button id="test-seq-btn" class="w-full py-2 bg-green-600 text-white font-bold rounded-lg text-sm hover:bg-green-500 transition-colors">Run Full Sequence</button>
+                            <p id="test-seq-path" class="text-[10px] text-zinc-500 mt-2 leading-relaxed">Home &#x2192; HP1 &#x2192; HP2 &#x2192; HP3 &#x2192; Home (wash). Uses the General settings and pours batter at every plate.</p>
                         </div>
                     </div>
 
@@ -1057,19 +1012,39 @@
                         <div id="diag-content" class="space-y-2 text-xs mono">
                             <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
                                 <span class="text-zinc-400">Left Proximity</span>
-                                <span id="diag-prox-left" class="text-green-400">OK</span>
+                                <span id="diag-prox-left" class="text-zinc-300">--</span>
                             </div>
                             <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
                                 <span class="text-zinc-400">Right Proximity</span>
-                                <span id="diag-prox-right" class="text-green-400">OK</span>
+                                <span id="diag-prox-right" class="text-zinc-300">--</span>
                             </div>
                             <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
                                 <span class="text-zinc-400">E-Stop</span>
-                                <span id="diag-estop" class="text-green-400">RELEASED</span>
+                                <span id="diag-estop" class="text-zinc-300">--</span>
                             </div>
                             <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
-                                <span class="text-zinc-400">WiFi Clients</span>
-                                <span id="diag-wifi" class="text-blue-400">0</span>
+                                <span class="text-zinc-400">Calibrated / travel</span>
+                                <span id="diag-calib" class="text-zinc-300">--</span>
+                            </div>
+                            <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
+                                <span class="text-zinc-400">Temperature link (ESP-NOW)</span>
+                                <span id="diag-temp-link" class="text-zinc-300">--</span>
+                            </div>
+                            <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
+                                <span class="text-zinc-400">Heating control</span>
+                                <span id="diag-heating" class="text-zinc-300">--</span>
+                            </div>
+                            <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
+                                <span class="text-zinc-400">Output board (ATmega)</span>
+                                <span id="diag-aux" class="text-zinc-300">--</span>
+                            </div>
+                            <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
+                                <span class="text-zinc-400">Jog pulse engine</span>
+                                <span id="diag-jog" class="text-zinc-300">--</span>
+                            </div>
+                            <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
+                                <span class="text-zinc-400">Wi-Fi</span>
+                                <span id="diag-wifi" class="text-blue-400">--</span>
                             </div>
                             <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
                                 <span class="text-zinc-400">Free Heap</span>
@@ -1077,13 +1052,13 @@
                             </div>
                             <div class="flex justify-between p-2 bg-black/40 rounded border border-white/5">
                                 <span class="text-zinc-400">CPU Freq</span>
-                                <span id="diag-cpu" class="text-blue-400">240 MHz</span>
+                                <span id="diag-cpu" class="text-blue-400">--</span>
                             </div>
                         </div>
                         <button id="refresh-diag-btn" class="w-full mt-3 py-2 bg-zinc-800 text-white rounded-lg text-sm hover:bg-zinc-700 transition-colors">Refresh Diagnostics</button>
                     </div>
                 </div>
-                <div class="p-5 border-t border-white/10">
+                <div class="flex-none p-5 border-t border-white/10">
                     <button id="admin-logout" class="w-full py-2 bg-zinc-800 text-white rounded-lg text-sm hover:bg-zinc-700 transition-colors">Logout</button>
                 </div>
             </div>
@@ -1092,6 +1067,11 @@
 
     <script>
         const API_BASE = window.location.origin;
+        // Opened from the machine itself (http://<machine-ip>/) rather than the hosted
+        // site: commands then go straight to the machine, so hold-to-run jog and the
+        // setup tools work with no cloud round-trip.
+        const SERVED_BY_MACHINE = location.protocol === 'http:' && !!location.hostname
+            && !/github\.io$/i.test(location.hostname);
 
         // ---- Supabase client (Phase 5). Null if the SDK/config didn't load,
         //      in which case the app falls back to local-network mode only. ----
@@ -1425,6 +1405,7 @@
 
                 // Canonical per-plate data; keep heaters[] mirror for getTarget().
                 currentPlates = data.plates || [];
+                applyDoseLevels(data.dose, data.thickness_revs, data.thickness);
                 if (data.heaters) currentHeatersData = data.heaters;
                 const plateCount = data.plate_count || currentPlates.length ||
                                    (data.temperatures ? data.temperatures.length : 4) || 4;
@@ -1524,7 +1505,11 @@
             document.getElementById('term-temp').innerText = (data.temp_average > -40) ? data.temp_average.toFixed(1) + '\u00B0C' : '--';
             document.getElementById('term-pos').innerText = data.motor_a_pos || '0';
             document.getElementById('term-cycle').innerText = `${data.cycles_completed || 0}/${data.cycles_target || 0}`;
-            document.getElementById('admin-motor-pos').innerText = data.motor_a_pos || '0';
+            if (!jogHolds.a && Date.now() - lastJogPosAt > 1200) setLivePos(data.motor_a_pos);
+            latestMaxPos = data.calibrated ? data.maxpos : null;
+            document.getElementById('admin-travel').innerText = latestMaxPos
+                ? `Travel: 0 (left sensor) to ${latestMaxPos} (right sensor)`
+                : 'Travel: calibrate to measure (left sensor = 0)';
             document.getElementById('admin-calib-status').innerText = data.calibrated ? 'CALIBRATED' : 'NOT CALIBRATED';
             document.getElementById('admin-calib-status').style.color = data.calibrated ? '#00e676' : '#ff3b30';
         }
@@ -1681,68 +1666,67 @@
                 addLog('Admin logged out');
             });
             adminSave.addEventListener('click', async () => {
-                const settings = {
-                    stepper1_speed: parseInt(document.getElementById('admin-speed1').value) || 2500,
-                    stepper2_speed: parseInt(document.getElementById('admin-speed2').value) || 1500,
-                    stepper3_speed: parseInt(document.getElementById('admin-speed3').value) || 1200,
-                    pump_duration: parseInt(document.getElementById('admin-pump-dur').value) || 3000,
-                    rotation_duration: parseInt(document.getElementById('admin-rot-dur').value) || 5000,
-                    valve_delay: parseInt(document.getElementById('admin-valve-dly').value) || 500,
-                    pid_kp: parseFloat(document.getElementById('admin-kp').value) || 2.0,
-                    pid_ki: parseFloat(document.getElementById('admin-ki').value) || 0.5,
-                    pid_kd: parseFloat(document.getElementById('admin-kd').value) || 1.0,
-                    bake_wait: parseInt(document.getElementById('admin-bake-wait').value) || 45,
-                    cycles: parseInt(document.getElementById('admin-cycles').value) || 2,
-                    pid_mode: document.getElementById('pid-mode-toggle').classList.contains('on') ? 1 : 0,
-                    op_mode: parseInt(document.getElementById('admin-op-mode').value) || 0
-                };
-                const ok = await sendCommand('/api/admin', 'POST', settings);
-                addLog('Admin settings saved'); addTerminalLine('Settings saved', 'cmd');
-                if (ok) toast('Settings saved', 'ok', 'cmd');
+                const read = readAdminInputs();
+                if (read.error) { toast(read.error, 'err', 'admin'); return; }
+                if (cloudMode) { await sendCommand('/api/admin', 'POST', read.values); return; }
+                const r = await apiJson('/api/admin', { method: 'POST', body: JSON.stringify(read.values) });
+                if (!r.ok) { toast(r.message || 'Settings not saved.', 'err', 'admin'); return; }
+                addLog('Admin settings saved'); addTerminalLine('Settings saved: ' + JSON.stringify(read.values), 'cmd');
+                toast('Settings saved', 'ok', 'admin');
+                updateMotorBHint();
             });
+            document.getElementById('admin-copy-config').addEventListener('click', copyAdminForConfig);
+            ['admin-mb-steps', 'admin-mb-speed'].forEach(id => document.getElementById(id).addEventListener('input', updateMotorBHint));
 
             document.querySelectorAll('.admin-tab-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
+                    document.querySelectorAll('.admin-tab-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
+                    btn.classList.add('active'); btn.setAttribute('aria-selected', 'true');
+                    if (btn.dataset.tab === 'diagnostics') refreshDiagnostics();
                     document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.add('hidden'));
                     document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
                 });
             });
 
-            const pidToggle = document.getElementById('pid-mode-toggle');
-            const pidLabel = document.getElementById('pid-mode-label');
-            pidToggle.addEventListener('click', () => {
-                pidToggle.classList.toggle('on');
-                pidLabel.innerText = pidToggle.classList.contains('on') ? 'FIXED' : 'AUTO';
-                addTerminalLine('PID mode: ' + pidLabel.innerText, 'cmd');
-            });
 
             document.getElementById('terminal-clear').addEventListener('click', () => {
                 document.getElementById('admin-terminal').innerHTML = '';
             });
 
-            setupJogButton('jog-left-btn', '/api/move/left', { steps: 50 });
-            setupJogButton('jog-right-btn', '/api/move/right', { steps: 50 });
-            document.getElementById('go-home-btn').addEventListener('click', () => { sendCommand('/api/move/to', 'POST', { position: adminPositions.home || 500 }); });
+            setupJogButton('jog-left-btn', 'a', -1);
+            setupJogButton('jog-right-btn', 'a', 1);
+            document.getElementById('go-home-btn').addEventListener('click', () => {
+                if (!Number.isFinite(adminPositions.home)) { toast('Home position not loaded yet.', 'err', 'pos'); return; }
+                sendCommand('/api/move/to', 'POST', { position: adminPositions.home });
+            });
             document.getElementById('go-left-prox-btn').addEventListener('click', () => { sendCommand('/api/move/to', 'POST', { position: 0 }); });
-            document.getElementById('go-right-prox-btn').addEventListener('click', () => { sendCommand('/api/move/to', 'POST', { position: 16000 }); });
+            document.getElementById('go-right-prox-btn').addEventListener('click', () => {
+                if (!latestMaxPos) { toast('Calibrate first - the right end is measured by calibration.', 'err', 'pos'); return; }
+                sendCommand('/api/move/to', 'POST', { position: latestMaxPos });
+            });
+            document.getElementById('jog-cfg-apply').addEventListener('click', () => {
+                const q = `axis=a&rps=${encodeURIComponent(document.getElementById('jog-rps').value)}`
+                        + `&acc=${encodeURIComponent(document.getElementById('jog-acc').value)}`
+                        + `&smooth=${encodeURIComponent(document.getElementById('jog-smooth').value)}`;
+                jogConfigPost('/api/jog/config?' + q, 'Jog settings saved');
+            });
+            document.getElementById('jog-cfg-reset').addEventListener('click', () => jogConfigPost('/api/jog/config/reset?axis=a', 'Jog settings back to defaults'));
+            document.getElementById('copy-positions-btn').addEventListener('click', copyPositionsForConfig);
             document.getElementById('goto-position-btn').addEventListener('click', () => {
                 const pos = parseInt(document.getElementById('goto-position-input').value);
                 if (!isNaN(pos)) sendCommand('/api/move/to', 'POST', { position: pos });
             });
 
             document.getElementById('save-positions-btn').addEventListener('click', async () => {
-                const positions = {
-                    home: parseInt(document.getElementById('pos-home').value) || 500,
-                    hp1: parseInt(document.getElementById('pos-hp1').value) || 3200,
-                    hp2: parseInt(document.getElementById('pos-hp2').value) || 6400,
-                    hp3: parseInt(document.getElementById('pos-hp3').value) || 9600,
-                    hp4: parseInt(document.getElementById('pos-hp4').value) || 12800,
-                    washing: parseInt(document.getElementById('pos-wash').value) || 15200
-                };
-                await sendCommand('/api/positions/save', 'POST', positions);
-                addTerminalLine('Positions saved', 'cmd');
+                const read = readPositionInputs();
+                if (read.error) { toast(read.error, 'err', 'pos'); return; }
+                if (cloudMode) { await sendCommand('/api/positions/save', 'POST', read.values); return; }
+                const r = await apiJson('/api/positions/save', { method: 'POST', body: JSON.stringify(read.values) });
+                if (!r.ok) { toast(r.message || 'Positions not saved.', 'err', 'pos'); return; }
+                Object.assign(adminPositions, read.values);
+                if (positionMeta.washAtHome) adminPositions.washing = adminPositions.home;
+                toast('Positions saved', 'ok', 'pos');
+                addTerminalLine('Positions saved: ' + JSON.stringify(read.values), 'cmd');
             });
             document.getElementById('reset-positions-btn').addEventListener('click', async () => {
                 if (confirm('Reset all positions to defaults?')) {
@@ -1752,28 +1736,12 @@
             });
 
             document.getElementById('test-seq-btn').addEventListener('click', async () => {
-                const delay = parseInt(document.getElementById('test-seq-delay').value) || 5;
-                addTerminalLine('Test sequence started...', 'cmd');
-                await sendCommand('/api/test/sequence', 'POST', { delay: delay * 1000 });
-                addTerminalLine('Test sequence complete', 'info');
+                if (!confirm('Run the full baking sequence now? It moves the carriage and pours batter at every plate.')) return;
+                const ok = await sendCommand('/api/test/sequence', 'POST');
+                if (ok) addTerminalLine('Full sequence started', 'cmd');
             });
 
-            document.getElementById('refresh-diag-btn').addEventListener('click', async () => {
-                try {
-                    const resp = await fetch(API_BASE + '/api/diagnostics');
-                    const d = await resp.json();
-                    document.getElementById('diag-prox-left').innerText = d.prox_left_triggered ? 'TRIGGERED' : 'OPEN';
-                    document.getElementById('diag-prox-left').style.color = d.prox_left_triggered ? '#ff3b30' : '#00e676';
-                    document.getElementById('diag-prox-right').innerText = d.prox_right_triggered ? 'TRIGGERED' : 'OPEN';
-                    document.getElementById('diag-prox-right').style.color = d.prox_right_triggered ? '#ff3b30' : '#00e676';
-                    document.getElementById('diag-estop').innerText = d.estop_active ? 'ACTIVE!' : 'RELEASED';
-                    document.getElementById('diag-estop').style.color = d.estop_active ? '#ff3b30' : '#00e676';
-                    document.getElementById('diag-wifi').innerText = d.wifi_clients;
-                    document.getElementById('diag-heap').innerText = d.free_heap ? (d.free_heap / 1024).toFixed(1) + ' KB' : '--';
-                    document.getElementById('diag-cpu').innerText = d.cpu_freq ? d.cpu_freq + ' MHz' : '--';
-                    toast('Diagnostics refreshed', 'ok', 'cmd');
-                } catch(e) { addTerminalLine('Diagnostics fetch failed', 'err'); toast('Diagnostics fetch failed', 'err', 'fail'); }
-            });
+            document.getElementById('refresh-diag-btn').addEventListener('click', () => refreshDiagnostics(true));
 
             document.getElementById('modal-cancel').addEventListener('click', () => { document.getElementById('heater-modal').classList.add('hidden'); });
             document.getElementById('modal-save').addEventListener('click', async () => {
@@ -1803,68 +1771,314 @@
                 const response = await fetch(API_BASE + '/api/admin');
                 if (response.ok) {
                     const data = await response.json();
-                    document.getElementById('admin-speed1').value = data.stepper1_speed || 2500;
-                    document.getElementById('admin-speed2').value = data.stepper2_speed || 1500;
-                    document.getElementById('admin-speed3').value = data.stepper3_speed || 1200;
-                    document.getElementById('admin-pump-dur').value = data.pump_duration || 3000;
-                    document.getElementById('admin-rot-dur').value = data.rotation_duration || 5000;
-                    document.getElementById('admin-valve-dly').value = data.valve_delay || 500;
-                    document.getElementById('admin-kp').value = data.pid_kp || 2.0;
-                    document.getElementById('admin-ki').value = data.pid_ki || 0.5;
-                    document.getElementById('admin-kd').value = data.pid_kd || 1.0;
-                    document.getElementById('admin-min-temp').value = data.min_temp || 150;
-                    document.getElementById('admin-stay-temp').value = data.stay_temp || 180;
-                    document.getElementById('admin-max-temp').value = data.max_temp || 190;
-                    document.getElementById('admin-bake-wait').value = data.bake_wait || 45;
-                    document.getElementById('admin-cycles').value = data.cycles || 2;
-                    document.getElementById('admin-op-mode').value = data.op_mode || 0;
-
-                    const pidToggle = document.getElementById('pid-mode-toggle');
-                    const pidLabel = document.getElementById('pid-mode-label');
-                    if (data.pid_mode === 1) { pidToggle.classList.add('on'); pidLabel.innerText = 'FIXED'; }
-                    else { pidToggle.classList.remove('on'); pidLabel.innerText = 'AUTO'; }
+                    fillAdminInputs(data);
 
                     if (data.positions) {
                         adminPositions = data.positions;
-                        document.getElementById('pos-home').value = data.positions.home || 500;
-                        document.getElementById('pos-hp1').value = data.positions.hp1 || 3200;
-                        document.getElementById('pos-hp2').value = data.positions.hp2 || 6400;
-                        document.getElementById('pos-hp3').value = data.positions.hp3 || 9600;
-                        document.getElementById('pos-hp4').value = data.positions.hp4 || 12800;
-                        document.getElementById('pos-wash').value = data.positions.washing || 15200;
+                        renderPositionRows(data);
                     }
+                    loadJogConfig();
                 }
             } catch(e) { addTerminalLine('Failed to load admin settings', 'err'); }
         }
 
-        function setupJogButton(id, endpoint, params) {
-            const btn = document.getElementById(id);
-            let interval;
-            const start = () => { sendCommand(endpoint + '?steps=' + (params.steps || 50), 'POST'); interval = setInterval(() => sendCommand(endpoint + '?steps=' + (params.steps || 50), 'POST'), 200); };
-            const stop = () => clearInterval(interval);
-            btn.addEventListener('mousedown', start);
-            btn.addEventListener('mouseup', stop);
-            btn.addEventListener('mouseleave', stop);
-            btn.addEventListener('touchstart', (e) => { e.preventDefault(); start(); });
-            btn.addEventListener('touchend', stop);
+        // Hold-to-run jog (addendum E4). The machine moves only while it keeps
+        // receiving a lease refresh (every 150 ms here; it decelerates on its own
+        // 400 ms after the last one). Every way a hold can end releases it:
+        // pointer up / cancel / lost capture, the window losing focus, the tab
+        // being hidden — and a release that happens while the press request is
+        // still in flight wins. Over the cloud a lease cannot be honoured
+        // (commands arrive every ~2 s), so jog is local-network only.
+        const jogHolds = {};
+        let lastJogPosAt = 0;
+        let latestMaxPos = null;
+        function setLivePos(v) {
+            const el = document.getElementById('admin-motor-pos');
+            if (el && Number.isFinite(Number(v))) el.innerText = String(v);
+        }
+        // Every jog reply carries the axis position, so the number follows the
+        // carriage while the button is held and shows exactly where it stopped.
+        function jogFetch(path, axis) {
+            return fetch(API_BASE + path, { method: 'POST', headers: { ...authHeader() } })
+                .then(async r => {
+                    if (!r.ok) return false;
+                    try {
+                        const j = await r.json();
+                        if (axis === 'a' && Number.isFinite(j.pos)) { setLivePos(j.pos); lastJogPosAt = Date.now(); }
+                    } catch (_) {}
+                    return true;
+                }).catch(() => false);
+        }
+        // After a release the axis still decelerates; follow it until it stops.
+        function followJogStop() {
+            let n = 0;
+            const t = setInterval(async () => {
+                if (jogHolds.a || ++n > 12) { clearInterval(t); return; }
+                try {
+                    const r = await fetch(API_BASE + '/api/status', { headers: { ...authHeader() } });
+                    const d = await r.json();
+                    setLivePos(d.motor_a_pos); lastJogPosAt = Date.now();
+                    if (!(d.jog && d.jog.a && d.jog.a.active)) clearInterval(t);
+                } catch (_) { clearInterval(t); }
+            }, 250);
+        }
+        async function apiJson(path, opts = {}) {
+            try {
+                const r = await fetch(API_BASE + path, { ...opts, headers: { 'Content-Type': 'application/json', ...authHeader(), ...(opts.headers || {}) } });
+                let j = {};
+                try { j = await r.json(); } catch (_) {}
+                return { ok: r.ok, ...j };
+            } catch (e) { return { ok: false, message: 'Machine not reachable.' }; }
         }
 
-        // Injera thickness is now 3 discrete settings (approved change):
-        //   1 = Thin  = 1 full revolution
-        //   2 = Medium = 2 full revolutions
-        //   3 = Thick = 3 full revolutions
-        const THICK_NAMES = { 1: 'Thin', 2: 'Medium', 3: 'Thick' };
+        // ---- General settings: exactly the values the firmware uses ----
+        const ADMIN_FIELDS = [
+            // [input id, API key, label, min, max, Config.h name]
+            ['admin-cycles', 'cycles', 'Cycles per start', 1, 999, 'CYCLE_COUNT_DEFAULT'],
+            ['admin-plate-delay', 'plate_delay', 'Wait at plate', 0, 3600, 'PLATE_DELAY_S_DEFAULT'],
+            ['admin-home-wait', 'home_wait', 'Wait at home', 0, 3600, 'HOME_WAIT_S_DEFAULT'],
+            ['admin-cycle-wait', 'cycle_wait', 'Wait between cycles', 0, 3600, 'CYCLE_WAIT_S_DEFAULT'],
+            ['admin-mb-steps', 'motor_b_steps', 'Pulses per nozzle turn', 200, 51200, 'MB_STEPS_DEFAULT'],
+            ['admin-mb-speed', 'motor_b_speed', 'Motor B step period', 100, 100000, 'MB_SPEED_US_DEF'],
+            ['admin-calib-fast', 'calib_fast', 'Fast approach period', 100, 100000, 'CALIB_FAST_US_DEF'],
+            ['admin-calib-slow', 'calib_slow', 'Soft touch period', 100, 100000, 'CALIB_SLOW_US_DEF'],
+        ];
+        function fillAdminInputs(data) {
+            for (const [id, key] of ADMIN_FIELDS) {
+                const v = data[key];
+                document.getElementById(id).value = Number.isFinite(v) ? v : '';
+            }
+            updateMotorBHint();
+        }
+        function readAdminInputs() {
+            const values = {};
+            for (const [id, key, label, lo, hi] of ADMIN_FIELDS) {
+                const raw = document.getElementById(id).value.trim();
+                if (raw === '') return { error: `${label} is empty.` };
+                const v = Number(raw);
+                if (!Number.isInteger(v) || v < lo || v > hi) return { error: `${label} must be a whole number from ${lo} to ${hi}.` };
+                values[key] = v;
+            }
+            return { values };
+        }
+        function updateMotorBHint() {
+            const steps = Number(document.getElementById('admin-mb-steps').value);
+            const us = Number(document.getElementById('admin-mb-speed').value);
+            const el = document.getElementById('admin-mb-hint');
+            if (steps > 0 && us > 0) {
+                const turnS = steps * us / 1e6;
+                el.innerText = `One nozzle turn takes ${turnS.toFixed(2)} s (${(1 / turnS).toFixed(2)} rev/s). Pulses per turn must match the Motor B driver DIP setting.`;
+            } else el.innerText = 'Pulses per turn must match the Motor B driver DIP setting.';
+        }
+        async function copyAdminForConfig() {
+            const read = readAdminInputs();
+            if (read.error) { toast(read.error, 'err', 'admin'); return; }
+            const text = ADMIN_FIELDS.map(([, key, , , , name]) => ('#define ' + name).padEnd(30) + read.values[key]).join('\n');
+            const pre = document.getElementById('admin-config-block');
+            pre.textContent = text;
+            pre.classList.remove('hidden');
+            try { await navigator.clipboard.writeText(text); toast('Copied. Paste into Config.h.', 'ok', 'admin'); }
+            catch (_) { toast('Select the lines below and copy them.', 'info', 'admin'); }
+        }
+
+        // ---- Diagnostics: live inputs + links, read from the machine ----
+        function setDiag(id, text, good) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.innerText = text;
+            el.style.color = good === true ? '#00e676' : good === false ? '#ff3b30' : '#d4d4d8';
+        }
+        async function refreshDiagnostics(announce) {
+            const [d, st] = await Promise.all([apiJson('/api/diagnostics'), apiJson('/api/status')]);
+            if (!d.ok) { if (announce) toast('Diagnostics fetch failed', 'err', 'fail'); addTerminalLine('Diagnostics fetch failed', 'err'); return; }
+            setDiag('diag-prox-left', d.prox_left_triggered ? 'DETECTED' : 'CLEAR', d.prox_left_triggered ? null : true);
+            setDiag('diag-prox-right', d.prox_right_triggered ? 'DETECTED' : 'CLEAR', d.prox_right_triggered ? null : true);
+            setDiag('diag-estop', d.estop_active ? 'PRESSED' : 'RELEASED', !d.estop_active);
+            setDiag('diag-aux', d.aux_healthy ? 'OK' : 'NOT RESPONDING', !!d.aux_healthy);
+            setDiag('diag-wifi', d.wifi_clients ? 'CONNECTED' : 'NOT CONNECTED', !!d.wifi_clients);
+            setDiag('diag-heap', d.free_heap ? (d.free_heap / 1024).toFixed(1) + ' KB' : '--');
+            setDiag('diag-cpu', d.cpu_freq ? d.cpu_freq + ' MHz' : '--');
+            if (st.ok) {
+                setDiag('diag-calib', st.calibrated ? `YES, 0 to ${st.maxpos}` : 'NOT CALIBRATED', !!st.calibrated);
+                const link = st.thermal ? st.thermal.link : (st.connection && st.connection.espnow_temp);
+                setDiag('diag-temp-link', link ? 'RECEIVING' : 'NO DATA', !!link);
+                const th = st.thermal || {};
+                setDiag('diag-heating', th.control_enabled ? (th.active ? 'ENABLED, HEATING' : 'ENABLED, IDLE') : 'DISABLED IN FIRMWARE', th.control_enabled ? true : null);
+                const ja = st.jog && st.jog.a;
+                if (ja) setDiag('diag-jog', ja.underruns ? `${ja.underruns} UNDERRUNS` : 'OK', !ja.underruns);
+            }
+            if (announce) toast('Diagnostics refreshed', 'ok', 'cmd');
+        }
+
+        // ---- Jog settings (Motor A) ----
+        function fillJogConfig(c) {
+            if (!c || !c.a) return;
+            document.getElementById('jog-rps').value = c.a.rps;
+            document.getElementById('jog-acc').value = c.a.acc;
+            document.getElementById('jog-smooth').value = c.a.smooth_ms;
+            const d = c.a.default || {};
+            document.getElementById('jog-cfg-note').innerText =
+                `Driver ${c.a.ppr} pulses/rev. Defaults ${d.rps} rev/s, ${d.acc} rev/s\u00b2, ${d.smooth_ms} ms. `
+                + 'Applies to jogging only (baking moves keep the proven profile). Saved on the machine.';
+        }
+        async function loadJogConfig() {
+            const c = await apiJson('/api/jog/config');
+            if (c.ok) fillJogConfig(c);
+        }
+        async function jogConfigPost(path, okMsg) {
+            if (cloudMode) { toast('Jog settings work on the local network only.', 'err', 'jogcfg'); return; }
+            const c = await apiJson(path, { method: 'POST' });
+            if (!c.ok) { toast(c.message || 'Jog settings rejected.', 'err', 'jogcfg'); return; }
+            fillJogConfig(c);
+            toast(okMsg, 'ok', 'jogcfg');
+            addTerminalLine(`${okMsg}: ${c.a.rps} rev/s, ${c.a.acc} rev/s2, ${c.a.smooth_ms} ms`, 'cmd');
+        }
+
+        // ---- Station positions: Home, HP1..HPn (+ Washing only if it is separate) ----
+        let positionMeta = { plateCount: 3, washAtHome: true, maxpos: null };
+        function positionKeys() {
+            const keys = [['home', 'Home']];
+            for (let i = 1; i <= positionMeta.plateCount; i++) keys.push(['hp' + i, 'Heating plate ' + i]);
+            if (!positionMeta.washAtHome) keys.push(['washing', 'Washing']);
+            return keys;
+        }
+        function renderPositionRows(data) {
+            positionMeta = {
+                plateCount: Number(data.plate_count) || 3,
+                washAtHome: data.wash_at_home !== false,
+                maxpos: data.calibrated ? data.maxpos : null,
+            };
+            const stops = ['Home'];
+            for (let i = 1; i <= positionMeta.plateCount; i++) stops.push('HP' + i);
+            stops.push(positionMeta.washAtHome ? 'Home (wash)' : 'Home', ...(positionMeta.washAtHome ? [] : ['Washing']));
+            document.getElementById('test-seq-path').innerText =
+                stops.join(' → ') + '. Uses the General settings and pours batter at every plate.';
+            const wrap = document.getElementById('pos-rows');
+            wrap.innerHTML = '';
+            for (const [key, label] of positionKeys()) {
+                const row = document.createElement('div');
+                row.className = 'flex items-end gap-2';
+                row.innerHTML = `<div class="flex-1"><label for="pos-${key}" class="text-[10px] text-zinc-400">${label}${key === 'home' && positionMeta.washAtHome ? ' (also washing)' : ''}</label>`
+                    + `<input type="number" id="pos-${key}" class="pos-input" min="0" step="1" inputmode="numeric"></div>`
+                    + `<button type="button" class="jog-btn text-[10px] whitespace-nowrap" style="width:auto; padding:7px 12px;">Use current</button>`;
+                const v = data.positions[key];
+                row.querySelector('input').value = Number.isFinite(v) ? v : '';
+                row.querySelector('button').addEventListener('click', () => {
+                    const cur = parseInt(document.getElementById('admin-motor-pos').innerText, 10);
+                    if (!Number.isFinite(cur)) return;
+                    row.querySelector('input').value = cur;
+                    toast(`${label} = ${cur} (press Save Positions)`, 'info', 'pos');
+                });
+                wrap.appendChild(row);
+            }
+        }
+        function readPositionInputs() {
+            const values = {};
+            const hi = latestMaxPos || positionMeta.maxpos;
+            for (const [key, label] of positionKeys()) {
+                const raw = document.getElementById('pos-' + key).value.trim();
+                if (raw === '') return { error: `${label} is empty.` };
+                const v = Number(raw);
+                if (!Number.isInteger(v) || v < 0) return { error: `${label} must be a whole number of steps, 0 or more.` };
+                if (hi && v > hi) return { error: `${label} (${v}) is past the right end (${hi}).` };
+                values[key] = v;
+            }
+            return { values };
+        }
+        async function copyPositionsForConfig() {
+            const read = readPositionInputs();
+            if (read.error) { toast(read.error, 'err', 'pos'); return; }
+            const v = read.values;
+            const pad = (name) => ('#define ' + name).padEnd(28);
+            const lines = [`${pad('POS_HOME_DEFAULT')}${v.home}`];
+            for (let i = 1; i <= positionMeta.plateCount; i++) lines.push(`${pad('POS_HP' + i + '_DEFAULT')}${v['hp' + i]}`);
+            if (!positionMeta.washAtHome) lines.push(`${pad('POS_WASHING_DEFAULT')}${v.washing}`);
+            const text = lines.join('\n');
+            const pre = document.getElementById('pos-config-block');
+            pre.textContent = text;
+            pre.classList.remove('hidden');
+            try { await navigator.clipboard.writeText(text); toast('Copied. Paste into Config.h section 11.', 'ok', 'pos'); }
+            catch (_) { toast('Select the lines below and copy them.', 'info', 'pos'); }
+        }
+        function jogRelease(key) {
+            const h = jogHolds[key];
+            if (!h) return;
+            h.released = true;
+            if (h.t) clearInterval(h.t);
+            h.btn.classList.remove('active');
+            delete jogHolds[key];
+            jogFetch(`/api/jog/release?axis=${h.axis}`, h.axis);
+            if (h.axis === 'a') followJogStop();
+        }
+        function setupJogButton(id, axis, dir) {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.style.touchAction = 'none';
+            btn.addEventListener('pointerdown', async (e) => {
+                e.preventDefault();
+                if (cloudMode) { toast('Jog works on the local network only — a held button cannot be guaranteed over the cloud.', 'err', 'jog'); return; }
+                jogRelease(axis);
+                try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+                const h = { btn, axis, t: null, released: false };
+                jogHolds[axis] = h;
+                btn.classList.add('active');
+                const ok = await jogFetch(`/api/jog/press?axis=${axis}&dir=${dir}`, axis);
+                if (h.released) return;                       // let go before the press landed
+                if (!ok) { jogRelease(axis); toast('Jog refused by the machine (busy, stopped or e-stop).', 'err', 'jog'); return; }
+                h.t = setInterval(() => jogFetch(`/api/jog/keepalive?axis=${axis}&dir=${dir}`, axis), 150);
+            });
+            for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture'])
+                btn.addEventListener(ev, () => jogRelease(axis));
+            btn.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+        window.addEventListener('blur', () => Object.keys(jogHolds).forEach(jogRelease));
+        document.addEventListener('visibilitychange', () => { if (document.hidden) Object.keys(jogHolds).forEach(jogRelease); });
+
+        // Injera thickness: five levels. Without a calibrated dose table each level
+        // pours a whole number of nozzle turns (the machine reports the table as
+        // status.thickness_revs; levels 1-3 = 1/2/3 turns are the proven pour).
+        // With a validated dose table (status.dose.calibrated) the levels are
+        // calibrated doses instead (addendum A). Older firmware reports
+        // dose.max_level 3, and then only three buttons are shown.
+        const THICK_NAMES = { 1: 'Thinnest', 2: 'Thin', 3: 'Medium', 4: 'Thick', 5: 'Thickest' };
+        const THICK_NAMES_3 = { 1: 'Thin', 2: 'Medium', 3: 'Thick' };
+        let doseLevels = 5;
+        let doseCalibrated = false;
+        let thicknessRevs = [1, 2, 3, 4, 5];
         let thicknessVal = 2;
+        let lastThickClick = 0;
+        function thickName(n) { return (doseLevels === 5 ? THICK_NAMES : THICK_NAMES_3)[n]; }
+        function applyDoseLevels(dose, revs, current) {
+            const before = [thicknessVal, doseLevels, doseCalibrated, thicknessRevs.join()].join('|');
+            // Follow the machine's level, except right after the operator chose one.
+            if (Number.isInteger(current) && Date.now() - lastThickClick > 4000) thicknessVal = current;
+            if (Array.isArray(revs) && revs.length) thicknessRevs = revs;
+            doseCalibrated = !!(dose && dose.calibrated);
+            const n = (dose && dose.max_level === 3) ? 3 : 5;
+            if (before === [thicknessVal, n, doseCalibrated, thicknessRevs.join()].join('|')) return;   // nothing changed
+            if (n !== doseLevels) {
+                doseLevels = n;
+                document.getElementById('thickness-group').className = `grid grid-cols-${n} gap-2`;
+                document.querySelectorAll('#thickness-group button').forEach(b =>
+                    b.classList.toggle('hidden', parseInt(b.dataset.thickness, 10) > n));
+            }
+            setThickness(Math.min(thicknessVal, n), true);
+        }
         function setThickness(n, silent) {
-            thicknessVal = Math.min(3, Math.max(1, parseInt(n, 10) || 2));
+            thicknessVal = Math.min(doseLevels, Math.max(1, parseInt(n, 10) || 2));
             const el = document.getElementById('thick-val');
-            el.innerText = THICK_NAMES[thicknessVal];
+            el.innerText = thickName(thicknessVal);
             bump(el);
             const revs = document.getElementById('thickness-revs');
-            if (revs) revs.innerText = thicknessVal + (thicknessVal === 1 ? ' revolution' : ' revolutions');
-            document.querySelectorAll('#thickness-group button').forEach(b =>
-                b.classList.toggle('active', parseInt(b.dataset.thickness, 10) === thicknessVal));
-            if (!silent) sendCommand('/api/settings', 'POST', { thickness: thicknessVal });  // not on initial paint
+            const turns = thicknessRevs[thicknessVal - 1];
+            if (revs) revs.innerText = doseCalibrated ? 'calibrated dose level ' + thicknessVal
+                                     : (turns ? turns + (turns === 1 ? ' nozzle turn' : ' nozzle turns') : 'level ' + thicknessVal);
+            document.querySelectorAll('#thickness-group button').forEach(b => {
+                const on = parseInt(b.dataset.thickness, 10) === thicknessVal;
+                b.classList.toggle('active', on);
+                b.setAttribute('aria-checked', on ? 'true' : 'false');
+            });
+            if (!silent) { lastThickClick = Date.now(); sendCommand('/api/settings', 'POST', { thickness: thicknessVal }); }  // not on initial paint
         }
 
         function initSliders() {
@@ -1879,21 +2093,6 @@
                 const val = e.target.value;
                 document.getElementById('global-temp-val').innerText = val + '\u00B0C';
                 sendCommand('/api/settings', 'POST', { target_temp_global: parseInt(val) });
-            });
-            document.getElementById('yaxis-speed').addEventListener('input', (e) => {
-                const val = e.target.value;
-                document.getElementById('linear-val').innerText = val + '%';
-                sendCommand('/api/admin', 'POST', { stepper1_speed: parseInt(val) * 25 });
-            });
-            document.getElementById('rot-speed').addEventListener('input', (e) => {
-                const val = e.target.value;
-                document.getElementById('rot-speed-val').innerText = val + '%';
-                sendCommand('/api/admin', 'POST', { stepper2_speed: parseInt(val) * 15 });
-            });
-            document.getElementById('pump-speed').addEventListener('input', (e) => {
-                const val = e.target.value;
-                document.getElementById('pump-speed-val').innerText = val + '%';
-                sendCommand('/api/admin', 'POST', { stepper3_speed: parseInt(val) * 12 });
             });
         }
 
@@ -1945,7 +2144,10 @@
             if (!chip) return;
             if (!s) { chip.classList.add('hidden'); return; }
             chip.classList.remove('hidden');
-            document.getElementById('session-label').innerText = s.mode === 'local' ? 'LOCAL' : (s.email || 'ACCOUNT');
+            const who = s.mode === 'local' ? 'Local' : (s.email || 'Account');
+            document.getElementById('session-label').innerText = who;
+            document.getElementById('hdr-avatar').innerText = (who.trim()[0] || 'A').toUpperCase();
+            document.getElementById('tg-alerts-btn').title = who + ' - my profile';
         }
 
         async function startSession() {
@@ -1956,6 +2158,9 @@
                     if (data && data.session) return enterCloud(data.session);
                 } catch (e) {}
             }
+            // Served by the machine but the sign-in service is unreachable (no
+            // internet): the machine is on this network, so control it directly.
+            if (SERVED_BY_MACHINE && !sb) return continueLocal();
             // No cloud session -> this is a login-gated website; show sign in.
             clearSession();   // drop any stale local-mode flag from older builds
             showLogin();
@@ -1964,10 +2169,15 @@
         // Resolve the signed-in user's machine (RLS returns only machines they own),
         // then reveal the dashboard (or pairing if they have none yet).
         async function enterCloud(session) {
-            cloudMode = true;
+            cloudMode = !SERVED_BY_MACHINE;
             currentUserId = session.user ? session.user.id : null;
             updateSessionChip({ mode: 'cloud', email: session.user && session.user.email });
             showTgBtn(true);   // Telegram alert linking is for signed-in (cloud) users
+            if (SERVED_BY_MACHINE) {   // the machine is the one serving this page
+                document.getElementById('login-overlay').classList.add('hidden');
+                document.getElementById('pair-overlay').classList.add('hidden');
+                return enterDashboard();
+            }
             try {
                 const { data, error } = await sb.from('machine_owners').select('machine_id').limit(1);
                 if (!error && data && data.length) {
@@ -1995,7 +2205,7 @@
             err.style.color = ''; err.innerText = ''; btn.disabled = true; btn.innerText = 'Signing in…';
             try {
                 if (!sb) {
-                    err.innerText = 'Cloud sign-in isn’t configured here. Use “Continue on local network”.';
+                    err.innerText = 'The sign-in service is not reachable. Check the internet connection and reload.';
                     return;
                 }
                 const { data, error } = await sb.auth.signInWithPassword({ email, password });
