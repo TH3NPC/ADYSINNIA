@@ -2122,7 +2122,10 @@
             bump(el);
             const revs = document.getElementById('thickness-revs');
             const turns = thicknessRevs[thicknessVal - 1];
+            // Bench firmware reports each level's pump (flow) and nozzle speed.
+            const bl = lastStatus && lastStatus.bench_info && Array.isArray(lastStatus.bench_info.levels) && lastStatus.bench_info.levels[thicknessVal - 1];
             if (revs) revs.innerText = doseCalibrated ? 'calibrated dose level ' + thicknessVal
+                                     : bl ? `pump ${bl.pump_rps} rev/s · nozzle ${bl.nozzle_rps} rev/s · ${bl.turns} turns`
                                      : (turns ? turns + (turns === 1 ? ' nozzle turn' : ' nozzle turns') : 'level ' + thicknessVal);
             document.querySelectorAll('#thickness-group button').forEach(b => {
                 const on = parseInt(b.dataset.thickness, 10) === thicknessVal;
